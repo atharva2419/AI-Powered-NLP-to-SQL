@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+google-genai
+groq
+duckdb
+pandas
+python-dotenv
