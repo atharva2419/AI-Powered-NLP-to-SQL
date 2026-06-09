@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from pathlib import Path
 
 import duckdb
@@ -10,7 +11,9 @@ load_dotenv()
 
 _client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-DATA_PATH = Path(__file__).parent / "data" / "taxi.parquet"
+DATA_PATH = Path(
+    os.getenv("TAXI_DATA_PATH", str(Path(__file__).parent / "data" / "taxi.parquet"))
+)
 MODEL_NAME = "llama-3.1-8b-instant"
 
 # ---------------------------------------------------------------------------
@@ -118,7 +121,7 @@ _BLOCKED_KEYWORDS = {"DROP", "DELETE", "INSERT", "UPDATE", "CREATE", "ALTER"}
 
 
 def _validate_sql(statement: str) -> None:
-    tokens = {t.upper().strip("();,") for t in statement.split()}
+    tokens = set(re.findall(r'\b[A-Za-z_]+\b', statement.upper()))
     blocked = tokens & _BLOCKED_KEYWORDS
     if blocked:
         raise ValueError(

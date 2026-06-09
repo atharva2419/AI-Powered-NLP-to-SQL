@@ -5,3 +5,5 @@ groq
 duckdb
 pandas
 python-dotenv
+pytest
+httpx
