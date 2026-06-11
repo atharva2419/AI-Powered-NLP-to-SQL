@@ -15,7 +15,50 @@ Ask plain-English questions about 3 million NYC taxi trips and get back the SQL,
 
 ---
 
-## Setup
+## Running with Docker (recommended)
+
+The easiest way to run the full stack. Requires [Docker Desktop](https://www.docker.com/products/docker-desktop).
+
+### 1. Clone and configure
+
+```bash
+git clone <repo-url>
+cd NL-SQL
+```
+
+Create a `.env` file in the project root:
+
+```
+GROQ_API_KEY=your_groq_api_key_here
+```
+
+### 2. Download the data
+
+```bash
+python backend/data/download_data.py
+```
+
+### 3. Start everything
+
+```bash
+docker compose up --build
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+The frontend waits for the backend to pass its health check before starting, so the app is fully ready on first load.
+
+To stop:
+
+```bash
+docker compose down
+```
+
+> **Note:** Re-run `docker compose up --build` after installing new Python or npm packages. For code-only changes, `docker compose up` (no `--build`) is faster.
+
+---
+
+## Running locally (manual setup)
 
 ### Prerequisites
 
@@ -30,12 +73,7 @@ git clone <repo-url>
 cd NL-SQL
 ```
 
-### 2. Backend
-
-```bash
-cd backend
-pip install -r requirements.txt
-```
+### 2. Configure
 
 Create a `.env` file in the project root:
 
@@ -43,19 +81,16 @@ Create a `.env` file in the project root:
 GROQ_API_KEY=your_groq_api_key_here
 ```
 
-Download the data:
+### 3. Backend
 
 ```bash
+cd backend
+pip install -r requirements.txt
 python data/download_data.py
-```
-
-Start the API server:
-
-```bash
 uvicorn main:app --reload --port 8000
 ```
 
-### 3. Frontend
+### 4. Frontend
 
 ```bash
 cd frontend
@@ -64,6 +99,23 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+---
+
+## Running tests
+
+### Backend
+
+```bash
+pytest backend/tests/ -v
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm test
+```
 
 ---
 
@@ -84,15 +136,26 @@ Open [http://localhost:3000](http://localhost:3000).
 ```
 NL-SQL/
 ├── backend/
-│   ├── main.py           # FastAPI app (3 endpoints)
-│   ├── query_engine.py   # LLM → SQL → DuckDB pipeline
+│   ├── Dockerfile
+│   ├── main.py              # FastAPI app (3 endpoints)
+│   ├── query_engine.py      # LLM → SQL → DuckDB pipeline
 │   ├── requirements.txt
+│   ├── tests/
+│   │   ├── conftest.py      # test parquet fixture
+│   │   ├── test_main.py     # API endpoint tests
+│   │   └── test_query_engine.py
 │   └── data/
-│       └── taxi.parquet
+│       └── taxi.parquet     # not in git — run download_data.py
 ├── frontend/
+│   ├── Dockerfile
 │   ├── app/
-│   │   └── page.tsx      # Main UI
-│   └── lib/
-│       └── api.ts        # Typed fetch functions
-└── .env                  # GROQ_API_KEY
+│   │   └── page.tsx         # Main UI
+│   ├── lib/
+│   │   └── api.ts           # Typed fetch functions
+│   └── __tests__/
+│       ├── api.test.ts
+│       └── page.test.tsx
+├── docker-compose.yml
+├── .env                     # GROQ_API_KEY (not in git)
+└── .env.example
 ```
