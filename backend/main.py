@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+import history
 import query_engine  # noqa: F401 — loads DuckDB table at import time
 from query_engine import _con, run_pipeline
 
@@ -22,6 +23,7 @@ EXAMPLES = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    history.init_db()
     print("DuckDB ready — taxi table pre-loaded")
     yield
 
@@ -54,6 +56,12 @@ async def post_query(req: QueryRequest):
         latency_ms = int((time.perf_counter() - t0) * 1000)
         if "error" in out.get("result", {}):
             return JSONResponse(status_code=400, content={"error": out["result"]["error"]})
+        try:
+            history.save_query(
+                req.question, out["sql"], out["result"], out["explanation"], latency_ms
+            )
+        except Exception:
+            pass  # never let history writes break the response
         return {
             "sql": out["sql"],
             "result": out["result"],
@@ -78,3 +86,8 @@ async def get_schema():
         "ORDER BY ordinal_position"
     ).fetchall()
     return {"columns": [{"name": col, "type": dtype} for col, dtype in rows]}
+
+
+@app.get("/api/history")
+async def get_query_history():
+    return {"history": history.get_history(limit=20)}

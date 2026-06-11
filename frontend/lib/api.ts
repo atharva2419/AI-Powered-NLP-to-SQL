@@ -20,6 +20,16 @@ export interface SchemaColumn {
   type: string;
 }
 
+export interface HistoryItem {
+  id: number;
+  question: string;
+  sql: string;
+  result: QueryResult;
+  explanation: string;
+  latency_ms: number;
+  created_at: string;
+}
+
 export async function fetchExamples(): Promise<string[]> {
   const res = await fetch(`${BASE}/api/examples`);
   if (!res.ok) throw new Error("Failed to fetch examples");
@@ -41,4 +51,11 @@ export async function runQuery(question: string): Promise<QueryResponse> {
     body: JSON.stringify({ question }),
   });
   return res.json() as Promise<QueryResponse>;
+}
+
+export async function fetchHistory(): Promise<HistoryItem[]> {
+  const res = await fetch(`${BASE}/api/history`);
+  if (!res.ok) throw new Error("Failed to fetch history");
+  const data = await res.json();
+  return data.history as HistoryItem[];
 }

@@ -4,12 +4,28 @@ import { useEffect, useState } from 'react';
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import sql from 'react-syntax-highlighter/dist/esm/languages/hljs/sql';
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
-import { fetchExamples, fetchSchema, runQuery, type QueryResponse, type SchemaColumn } from '@/lib/api';
+import {
+  fetchExamples,
+  fetchSchema,
+  fetchHistory,
+  runQuery,
+  type HistoryItem,
+  type QueryResponse,
+  type SchemaColumn,
+} from '@/lib/api';
 
 SyntaxHighlighter.registerLanguage('sql', sql);
 
 const FRIENDLY_ERROR =
   "I couldn't generate a valid query for that. Try rephrasing — for example, 'What is the average fare?'";
+
+function timeAgo(isoString: string): string {
+  const diff = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
 
 export default function Home() {
   const [question, setQuestion] = useState('');
@@ -20,10 +36,12 @@ export default function Home() {
   const [result, setResult] = useState<QueryResponse | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
   useEffect(() => {
     fetchExamples().then(setExamples).catch(() => {});
     fetchSchema().then(setSchema).catch(() => {});
+    fetchHistory().then(setHistory).catch(() => {});
   }, []);
 
   const submit = async (q: string) => {
@@ -34,6 +52,9 @@ export default function Home() {
     try {
       const data = await runQuery(q.trim());
       setResult(data);
+      if (!data.error && !data.result?.error) {
+        fetchHistory().then(setHistory).catch(() => {});
+      }
     } catch {
       setNetworkError('Could not reach the server. Is the backend running on port 8000?');
     } finally {
@@ -51,6 +72,17 @@ export default function Home() {
     navigator.clipboard.writeText(result.sql);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleHistoryClick = (item: HistoryItem) => {
+    setQuestion(item.question);
+    setResult({
+      sql: item.sql,
+      result: item.result,
+      explanation: item.explanation,
+      latency_ms: item.latency_ms,
+    });
+    setNetworkError(null);
   };
 
   const displayRows = result?.result?.rows?.slice(0, 10) ?? [];
@@ -248,6 +280,31 @@ export default function Home() {
             )}
           </div>
         )}
+
+        {/* Recent queries */}
+        {history.length > 0 && (
+          <div className="mt-12">
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-400">
+              Recent queries
+            </h2>
+            <div className="space-y-1">
+              {history.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleHistoryClick(item)}
+                  className="w-full rounded-lg border border-zinc-100 bg-white px-4 py-3 text-left transition-colors hover:border-zinc-300 hover:bg-zinc-50"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="text-sm text-zinc-700 line-clamp-1">{item.question}</span>
+                    <span className="shrink-0 text-xs text-zinc-400">{timeAgo(item.created_at)}</span>
+                  </div>
+                  <p className="mt-0.5 font-mono text-xs text-zinc-400 line-clamp-1">{item.sql}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

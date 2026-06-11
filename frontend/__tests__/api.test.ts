@@ -1,4 +1,4 @@
-import { fetchExamples, fetchSchema, runQuery } from '@/lib/api'
+import { fetchExamples, fetchSchema, runQuery, fetchHistory } from '@/lib/api'
 
 const mockFetch = jest.fn()
 global.fetch = mockFetch
@@ -86,5 +86,39 @@ describe('runQuery', () => {
     mockFetch.mockReturnValueOnce(mockOk({ error: 'Query failed' }))
     const result = await runQuery('bad question')
     expect(result.error).toBe('Query failed')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// fetchHistory
+// ---------------------------------------------------------------------------
+describe('fetchHistory', () => {
+  const MOCK_HISTORY = [
+    {
+      id: 1,
+      question: 'How many trips?',
+      sql: 'SELECT COUNT(*) FROM taxi',
+      result: { columns: ['count_star()'], rows: [[5]], row_count: 1 },
+      explanation: 'There were 5 trips.',
+      latency_ms: 1200,
+      created_at: '2024-01-01T10:00:00Z',
+    },
+  ]
+
+  it('returns the history array', async () => {
+    mockFetch.mockReturnValueOnce(mockOk({ history: MOCK_HISTORY }))
+    const result = await fetchHistory()
+    expect(result).toEqual(MOCK_HISTORY)
+  })
+
+  it('calls the correct URL', async () => {
+    mockFetch.mockReturnValueOnce(mockOk({ history: [] }))
+    await fetchHistory()
+    expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/api/history')
+  })
+
+  it('throws on non-ok response', async () => {
+    mockFetch.mockReturnValueOnce(mockFail())
+    await expect(fetchHistory()).rejects.toThrow('Failed to fetch history')
   })
 })

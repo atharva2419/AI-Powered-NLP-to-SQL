@@ -19,6 +19,7 @@ jest.mock('@/lib/api')
 const mockFetchExamples = api.fetchExamples as jest.MockedFunction<typeof api.fetchExamples>
 const mockFetchSchema   = api.fetchSchema   as jest.MockedFunction<typeof api.fetchSchema>
 const mockRunQuery      = api.runQuery      as jest.MockedFunction<typeof api.runQuery>
+const mockFetchHistory  = api.fetchHistory  as jest.MockedFunction<typeof api.fetchHistory>
 
 const EXAMPLES = ['How many trips?', 'What is the average fare?']
 const SCHEMA   = [{ name: 'fare_amount', type: 'DOUBLE' }, { name: 'VendorID', type: 'INTEGER' }]
@@ -33,6 +34,7 @@ beforeEach(() => {
   mockFetchExamples.mockResolvedValue(EXAMPLES)
   mockFetchSchema.mockResolvedValue(SCHEMA)
   mockRunQuery.mockResolvedValue(SUCCESS_RESULT)
+  mockFetchHistory.mockResolvedValue([])
 })
 
 afterEach(() => jest.clearAllMocks())
@@ -157,5 +159,50 @@ describe('schema sidebar', () => {
     fireEvent.click(screen.getByText('Schema'))
     fireEvent.click(screen.getByText('Schema'))
     expect(screen.queryByText('fare_amount')).not.toBeInTheDocument()
+  })
+})
+
+// ---------------------------------------------------------------------------
+describe('query history', () => {
+  const HISTORY_ITEM: api.HistoryItem = {
+    id: 1,
+    question: 'Saved question',
+    sql: 'SELECT AVG(fare_amount) FROM taxi',
+    result: { columns: ['avg'], rows: [[14.2]], row_count: 1 },
+    explanation: 'Average fare was $14.20.',
+    latency_ms: 800,
+    created_at: new Date().toISOString(),
+  }
+
+  it('shows Recent queries heading when history is non-empty', async () => {
+    mockFetchHistory.mockResolvedValue([HISTORY_ITEM])
+    render(<Home />)
+    await waitFor(() => expect(screen.getByText('Recent queries')).toBeInTheDocument())
+  })
+
+  it('does not show Recent queries when history is empty', async () => {
+    mockFetchHistory.mockResolvedValue([])
+    render(<Home />)
+    await waitFor(() => screen.getByText('How many trips?'))
+    expect(screen.queryByText('Recent queries')).not.toBeInTheDocument()
+  })
+
+  it('clicking a history item restores the question in the input', async () => {
+    mockFetchHistory.mockResolvedValue([HISTORY_ITEM])
+    render(<Home />)
+    await waitFor(() => screen.getByText('Saved question'))
+    fireEvent.click(screen.getByText('Saved question'))
+    expect(screen.getByDisplayValue('Saved question')).toBeInTheDocument()
+  })
+
+  it('clicking a history item shows the saved SQL without calling runQuery', async () => {
+    mockFetchHistory.mockResolvedValue([HISTORY_ITEM])
+    render(<Home />)
+    await waitFor(() => screen.getByText('Saved question'))
+    fireEvent.click(screen.getByText('Saved question'))
+    await waitFor(() =>
+      expect(screen.getByTestId('sql-block')).toHaveTextContent('SELECT AVG(fare_amount) FROM taxi')
+    )
+    expect(mockRunQuery).not.toHaveBeenCalled()
   })
 })

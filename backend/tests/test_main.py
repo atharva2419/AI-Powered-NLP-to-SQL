@@ -104,3 +104,37 @@ class TestSchemaEndpoint:
         col_names = [c["name"] for c in client.get("/api/schema").json()["columns"]]
         assert "fare_amount" in col_names
         assert "VendorID" in col_names
+
+
+# ---------------------------------------------------------------------------
+# GET /api/history
+# ---------------------------------------------------------------------------
+class TestHistoryEndpoint:
+    def test_returns_200(self):
+        with patch("main.history.get_history", return_value=[]):
+            resp = client.get("/api/history")
+        assert resp.status_code == 200
+
+    def test_returns_history_key(self):
+        with patch("main.history.get_history", return_value=[]):
+            resp = client.get("/api/history")
+        assert "history" in resp.json()
+
+    def test_empty_history(self):
+        with patch("main.history.get_history", return_value=[]):
+            resp = client.get("/api/history")
+        assert resp.json() == {"history": []}
+
+    def test_returns_history_items(self):
+        mock_item = {
+            "id": 1,
+            "question": "How many trips?",
+            "sql": "SELECT COUNT(*) FROM taxi",
+            "result": {"columns": ["count"], "rows": [[5]], "row_count": 1},
+            "explanation": "5 trips.",
+            "latency_ms": 1200,
+            "created_at": "2024-01-01T10:00:00Z",
+        }
+        with patch("main.history.get_history", return_value=[mock_item]):
+            resp = client.get("/api/history")
+        assert resp.json()["history"] == [mock_item]
