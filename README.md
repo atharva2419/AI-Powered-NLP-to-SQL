@@ -70,7 +70,7 @@ Open [http://localhost:3000](http://localhost:3000). The frontend waits for the 
 docker compose down
 ```
 
-> **Tip:** Re-run `docker compose up --build` after adding Python/npm packages. For code-only changes, `docker compose up` (no `--build`) is faster.
+> **Note:** Source code is baked into the images at build time (only `backend/data/` is volume-mounted), so re-run `docker compose up --build` after **any** code change. Plain `docker compose up` is only enough when nothing but the data changed.
 
 ---
 
