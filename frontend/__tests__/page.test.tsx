@@ -155,25 +155,32 @@ describe('error handling', () => {
 })
 
 // ---------------------------------------------------------------------------
-describe('schema sidebar', () => {
-  it('shows the Schema toggle after schema loads', async () => {
+describe('glossary panel', () => {
+  it('shows the Glossary toggle after schema loads', async () => {
     render(<Home />)
-    await waitFor(() => expect(screen.getByText('Schema')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Glossary')).toBeInTheDocument())
   })
 
-  it('clicking Schema toggle reveals column names', async () => {
+  it('clicking Glossary toggle reveals column names', async () => {
     render(<Home />)
-    await waitFor(() => screen.getByText('Schema'))
-    fireEvent.click(screen.getByText('Schema'))
+    await waitFor(() => screen.getByText('Glossary'))
+    fireEvent.click(screen.getByText('Glossary'))
     expect(screen.getByText('fare_amount')).toBeInTheDocument()
     expect(screen.getByText('VendorID')).toBeInTheDocument()
   })
 
-  it('clicking Schema toggle again hides columns', async () => {
+  it('shows plain-English descriptions for columns', async () => {
     render(<Home />)
-    await waitFor(() => screen.getByText('Schema'))
-    fireEvent.click(screen.getByText('Schema'))
-    fireEvent.click(screen.getByText('Schema'))
+    await waitFor(() => screen.getByText('Glossary'))
+    fireEvent.click(screen.getByText('Glossary'))
+    expect(screen.getByText(/Meter fare based on time and distance/)).toBeInTheDocument()
+  })
+
+  it('clicking Glossary toggle again hides columns', async () => {
+    render(<Home />)
+    await waitFor(() => screen.getByText('Glossary'))
+    fireEvent.click(screen.getByText('Glossary'))
+    fireEvent.click(screen.getByText('Glossary'))
     expect(screen.queryByText('fare_amount')).not.toBeInTheDocument()
   })
 })

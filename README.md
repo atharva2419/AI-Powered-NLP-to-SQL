@@ -13,9 +13,9 @@ Ask plain-English questions about **3 million NYC taxi trips** and get back the 
 - **Plain-English explanation** — the LLM reads the result and writes 1–2 sentences summarising what it means
 - **Auto-charts** — results are automatically visualised: a stat card for single values, a bar chart for category breakdowns, a line chart for time series
 - **Query history** — every successful query is saved to SQLite; click any past query to instantly restore it
-- **Schema explorer** — collapsible panel showing all 19 columns with their types
+- **Column glossary** — collapsible panel describing all 19 columns in plain English (including what coded values like `payment_type = 1` mean), so users know what they can ask
 - **SQL safety** — blocks DROP / DELETE / INSERT / UPDATE / CREATE / ALTER at the server level
-- **Fully tested** — 49 backend tests (pytest) + 41 frontend tests (Jest + RTL), CI via GitHub Actions
+- **Fully tested** — 49 backend tests (pytest) + 46 frontend tests (Jest + RTL), CI via GitHub Actions
 - **Docker-ready** — one command brings up the full stack
 
 ---
@@ -106,7 +106,7 @@ Open [http://localhost:3000](http://localhost:3000).
 # Backend (49 tests)
 pytest backend/tests/ -v
 
-# Frontend (41 tests)
+# Frontend (46 tests)
 cd frontend && npm test
 ```
 
@@ -178,11 +178,13 @@ NL-SQL/
 │   │   └── ResultChart.tsx  # Recharts stat card / bar / line renderer
 │   ├── lib/
 │   │   ├── api.ts           # Typed fetch functions + interfaces
-│   │   └── chart.ts         # Result-shape detection (which chart fits?)
+│   │   ├── chart.ts         # Result-shape detection (which chart fits?)
+│   │   └── glossary.ts      # Plain-English column descriptions (TLC data dictionary)
 │   └── __tests__/
 │       ├── api.test.ts      # fetch function tests (12 tests)
 │       ├── chart.test.ts    # chart detection tests (10 tests)
-│       └── page.test.tsx    # UI component tests (19 tests)
+│       ├── glossary.test.ts # glossary coverage tests (4 tests)
+│       └── page.test.tsx    # UI component tests (20 tests)
 ├── .github/workflows/ci.yml # parallel backend + frontend CI
 ├── docker-compose.yml
 ├── .env                     # GROQ_API_KEY — not in git

@@ -14,6 +14,7 @@ import {
   type SchemaColumn,
 } from '@/lib/api';
 import ResultChart from '@/components/ResultChart';
+import { GLOSSARY } from '@/lib/glossary';
 
 SyntaxHighlighter.registerLanguage('sql', sql);
 
@@ -146,24 +147,32 @@ export default function Home() {
               className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-800 transition-colors shrink-0"
             >
               <span>{schemaOpen ? '▴' : '▾'}</span>
-              <span>Schema</span>
+              <span>Glossary</span>
             </button>
           )}
         </div>
 
-        {/* Collapsible schema panel */}
+        {/* Collapsible glossary panel */}
         {schemaOpen && schema.length > 0 && (
           <div className="mb-8 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
-            <div className="border-b border-zinc-100 px-4 py-2.5">
+            <div className="flex items-baseline justify-between border-b border-zinc-100 px-4 py-2.5">
               <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
                 taxi — {schema.length} columns
               </span>
+              <span className="text-xs text-zinc-400">
+                everything you can ask about
+              </span>
             </div>
-            <div className="grid grid-cols-2 gap-x-8 p-4 sm:grid-cols-3">
+            <div className="divide-y divide-zinc-50">
               {schema.map(({ name, type }) => (
-                <div key={name} className="flex items-baseline gap-2 py-1">
-                  <span className="font-mono text-xs font-medium text-zinc-800">{name}</span>
-                  <span className="text-xs text-zinc-400">{type}</span>
+                <div key={name} className="flex flex-col gap-0.5 px-4 py-2 sm:flex-row sm:items-baseline sm:gap-3">
+                  <span className="w-52 shrink-0 font-mono text-xs font-medium text-zinc-800">
+                    {name}
+                    <span className="ml-2 font-sans text-[10px] uppercase text-zinc-400">{type}</span>
+                  </span>
+                  <span className="text-xs leading-relaxed text-zinc-500">
+                    {GLOSSARY[name] ?? ''}
+                  </span>
                 </div>
               ))}
             </div>
