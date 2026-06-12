@@ -11,10 +11,11 @@ Ask plain-English questions about **3 million NYC taxi trips** and get back the 
 - **Natural language → SQL** — type a question, get a DuckDB query back in under 2 seconds
 - **Instant results** — DuckDB queries run in-process against a local Parquet file (~3M rows)
 - **Plain-English explanation** — the LLM reads the result and writes 1–2 sentences summarising what it means
+- **Auto-charts** — results are automatically visualised: a stat card for single values, a bar chart for category breakdowns, a line chart for time series
 - **Query history** — every successful query is saved to SQLite; click any past query to instantly restore it
 - **Schema explorer** — collapsible panel showing all 19 columns with their types
 - **SQL safety** — blocks DROP / DELETE / INSERT / UPDATE / CREATE / ALTER at the server level
-- **Fully tested** — 49 backend tests (pytest) + 30 frontend tests (Jest + RTL), CI via GitHub Actions
+- **Fully tested** — 49 backend tests (pytest) + 41 frontend tests (Jest + RTL), CI via GitHub Actions
 - **Docker-ready** — one command brings up the full stack
 
 ---
@@ -105,7 +106,7 @@ Open [http://localhost:3000](http://localhost:3000).
 # Backend (49 tests)
 pytest backend/tests/ -v
 
-# Frontend (30 tests)
+# Frontend (41 tests)
 cd frontend && npm test
 ```
 
@@ -172,12 +173,16 @@ NL-SQL/
 ├── frontend/
 │   ├── Dockerfile
 │   ├── app/
-│   │   └── page.tsx         # Main UI — search, results, history, schema
+│   │   └── page.tsx         # Main UI — search, results, chart, history, schema
+│   ├── components/
+│   │   └── ResultChart.tsx  # Recharts stat card / bar / line renderer
 │   ├── lib/
-│   │   └── api.ts           # Typed fetch functions + interfaces
+│   │   ├── api.ts           # Typed fetch functions + interfaces
+│   │   └── chart.ts         # Result-shape detection (which chart fits?)
 │   └── __tests__/
 │       ├── api.test.ts      # fetch function tests (12 tests)
-│       └── page.test.tsx    # UI component tests (18 tests)
+│       ├── chart.test.ts    # chart detection tests (10 tests)
+│       └── page.test.tsx    # UI component tests (19 tests)
 ├── .github/workflows/ci.yml # parallel backend + frontend CI
 ├── docker-compose.yml
 ├── .env                     # GROQ_API_KEY — not in git
@@ -196,6 +201,7 @@ NL-SQL/
 | Backend | Python · FastAPI · Pydantic |
 | History | SQLite (Python stdlib `sqlite3`) |
 | Frontend | Next.js 16 · React · Tailwind CSS v4 |
+| Charts | [Recharts](https://recharts.org) |
 | Tests | pytest · Jest · React Testing Library |
 | CI | GitHub Actions |
 | Containers | Docker · docker-compose |

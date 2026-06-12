@@ -15,6 +15,15 @@ jest.mock('react-syntax-highlighter', () => ({
 jest.mock('react-syntax-highlighter/dist/esm/languages/hljs/sql', () => ({}))
 jest.mock('react-syntax-highlighter/dist/esm/styles/hljs', () => ({ atomOneDark: {} }))
 
+// Mock the recharts-based chart — SVG charts don't render in jsdom.
+// Chart detection logic is tested separately in chart.test.ts.
+jest.mock('@/components/ResultChart', () => ({
+  __esModule: true,
+  default: ({ columns, rows }: { columns: string[]; rows: unknown[][] }) => (
+    <div data-testid="result-chart" data-columns={columns.join(',')} data-rows={rows.length} />
+  ),
+}))
+
 jest.mock('@/lib/api')
 const mockFetchExamples = api.fetchExamples as jest.MockedFunction<typeof api.fetchExamples>
 const mockFetchSchema   = api.fetchSchema   as jest.MockedFunction<typeof api.fetchSchema>
@@ -103,6 +112,13 @@ describe('successful query', () => {
   it('shows latency in seconds', async () => {
     await submitQuery()
     expect(screen.getByText(/Answered in 1\.5s/)).toBeInTheDocument()
+  })
+
+  it('renders the chart with the result data', async () => {
+    await submitQuery()
+    const chart = screen.getByTestId('result-chart')
+    expect(chart).toHaveAttribute('data-columns', 'count_star()')
+    expect(chart).toHaveAttribute('data-rows', '1')
   })
 })
 

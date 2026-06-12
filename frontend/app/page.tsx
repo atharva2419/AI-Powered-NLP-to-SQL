@@ -13,6 +13,7 @@ import {
   type QueryResponse,
   type SchemaColumn,
 } from '@/lib/api';
+import ResultChart from '@/components/ResultChart';
 
 SyntaxHighlighter.registerLanguage('sql', sql);
 
@@ -93,13 +94,18 @@ export default function Home() {
       <div className="mx-auto w-full max-w-[780px]">
 
         {/* Header */}
-        <div className="mb-10">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
-            NYC Taxi Explorer
-          </h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Ask questions about 3M+ taxi trips in plain English.
-          </p>
+        <div className="mb-10 flex items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-400 text-xl shadow-sm">
+            🚕
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+              NYC Taxi Explorer
+            </h1>
+            <p className="mt-0.5 text-sm text-zinc-500">
+              Ask questions about 3M+ taxi trips in plain English.
+            </p>
+          </div>
         </div>
 
         {/* Search input */}
@@ -110,7 +116,7 @@ export default function Home() {
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submit(question)}
             placeholder="e.g. What is the average fare amount?"
-            className="flex-1 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
+            className="flex-1 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
           />
           <button
             onClick={() => submit(question)}
@@ -221,6 +227,9 @@ export default function Home() {
                     {result.sql}
                   </SyntaxHighlighter>
                 </div>
+
+                {/* Auto-detected chart (stat card / bar / line) */}
+                <ResultChart columns={result.result.columns} rows={result.result.rows} />
 
                 {/* Result table */}
                 <div className="overflow-hidden rounded-lg border border-zinc-200 shadow-sm">
