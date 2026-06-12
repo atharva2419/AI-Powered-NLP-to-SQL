@@ -104,7 +104,7 @@ export default function Home() {
               NYC Taxi Explorer
             </h1>
             <p className="mt-0.5 text-sm text-zinc-500">
-              Ask questions about 3M+ taxi trips in plain English.
+              Ask questions about 40M+ taxi trips from 2024 in plain English.
             </p>
           </div>
         </div>

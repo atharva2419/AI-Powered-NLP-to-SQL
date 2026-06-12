@@ -1,6 +1,6 @@
 # AI-Powered NL→SQL over NYC Taxi Data
 
-Ask plain-English questions about **3 million NYC taxi trips** and get back the SQL, the results, and a plain-English explanation — powered by **LLaMA 3.1** (Groq) and **DuckDB**.
+Ask plain-English questions about **41 million NYC taxi trips** (full year 2024) and get back the SQL, the results, an auto-generated chart, and a plain-English explanation — powered by **LLaMA 3.1** (Groq) and **DuckDB**.
 
 <!-- Add a screenshot here — drag & drop an image into this file on GitHub -->
 
@@ -9,7 +9,7 @@ Ask plain-English questions about **3 million NYC taxi trips** and get back the 
 ## Features
 
 - **Natural language → SQL** — type a question, get a DuckDB query back in under 2 seconds
-- **Instant results** — DuckDB queries run in-process against a local Parquet file (~3M rows)
+- **Instant results** — DuckDB queries 41M rows lazily via a view over 12 monthly Parquet files; aggregates return in under half a second with nothing loaded into memory at startup
 - **Plain-English explanation** — the LLM reads the result and writes 1–2 sentences summarising what it means
 - **Auto-charts** — results are automatically visualised: a stat card for single values, a bar chart for category breakdowns, a line chart for time series
 - **Query history** — every successful query is saved to SQLite; click any past query to instantly restore it
@@ -36,8 +36,8 @@ LLaMA 3.1 (Groq)  ──► SQL query
 ```
 
 1. Your question is sent to the FastAPI backend
-2. LLaMA 3.1 translates it into a DuckDB SQL query over a `taxi` table
-3. DuckDB executes the query against a local Parquet file (no database server needed)
+2. LLaMA 3.1 translates it into a DuckDB SQL query over a `taxi` view
+3. DuckDB executes the query lazily against 12 monthly Parquet files (41M rows, no database server, nothing pre-loaded into memory — the view also filters out records with corrupt timestamps)
 4. LLaMA 3.1 reads the result and writes a short explanation
 5. The response (SQL + rows + explanation + latency) is returned to the browser
 6. The query is persisted to SQLite for history
@@ -56,7 +56,7 @@ cd AI-Powered-NLP-to-SQL
 # 2. Add your Groq API key (free at console.groq.com)
 echo "GROQ_API_KEY=your_key_here" > .env
 
-# 3. Download the data (~50 MB Parquet file)
+# 3. Download the data (12 monthly Parquet files, ~700 MB total — resumable)
 python backend/data/download_data.py
 
 # 4. Start
@@ -149,6 +149,7 @@ Tests run automatically on every push via GitHub Actions (two parallel jobs: bac
 | What hour of the day has the most pickups? | `SELECT HOUR(tpep_pickup_datetime) AS hour, COUNT(*) AS trips FROM taxi GROUP BY hour ORDER BY trips DESC LIMIT 1` |
 | What percentage of trips are paid by credit card? | `SELECT ROUND(100.0 * SUM(CASE WHEN payment_type = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS pct FROM taxi` |
 | What is the average trip distance by payment type? | `SELECT payment_type, AVG(trip_distance) AS avg_distance FROM taxi GROUP BY payment_type ORDER BY payment_type` |
+| Which month had the most trips? | `SELECT MONTH(tpep_pickup_datetime) AS month, COUNT(*) AS trips FROM taxi GROUP BY month ORDER BY trips DESC LIMIT 1` |
 
 ---
 
@@ -168,7 +169,7 @@ NL-SQL/
 │   │   ├── test_query_engine.py  # pipeline unit tests (13 tests)
 │   │   └── test_history.py  # SQLite history tests (9 tests)
 │   └── data/
-│       ├── taxi.parquet     # not in git — run download_data.py
+│       ├── yellow_tripdata_2024-*.parquet  # 12 files, not in git — run download_data.py
 │       └── history.db       # not in git — auto-created on first run
 ├── frontend/
 │   ├── Dockerfile
@@ -199,7 +200,7 @@ NL-SQL/
 |-------|------------|
 | LLM | LLaMA 3.1 8B via [Groq](https://console.groq.com) |
 | Query engine | [DuckDB](https://duckdb.org) (in-process, no server) |
-| Data | NYC TLC Yellow Taxi Parquet (~3M rows, ~50 MB) |
+| Data | NYC TLC Yellow Taxi Parquet (41M rows, full year 2024, ~700 MB) |
 | Backend | Python · FastAPI · Pydantic |
 | History | SQLite (Python stdlib `sqlite3`) |
 | Frontend | Next.js 16 · React · Tailwind CSS v4 |

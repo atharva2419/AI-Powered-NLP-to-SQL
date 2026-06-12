@@ -15,7 +15,7 @@ EXAMPLES = [
     "How many trips were taken in total?",
     "What hour of the day has the most pickups?",
     "What is the average fare amount?",
-    "Which day of the week is busiest?",
+    "Which month had the most trips?",
     "What percentage of trips are paid by credit card?",
     "What is the average trip distance by payment type?",
 ]

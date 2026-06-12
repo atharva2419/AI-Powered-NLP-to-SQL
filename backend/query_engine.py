@@ -12,7 +12,10 @@ load_dotenv()
 _client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 DATA_PATH = Path(
-    os.getenv("TAXI_DATA_PATH", str(Path(__file__).parent / "data" / "taxi.parquet"))
+    os.getenv(
+        "TAXI_DATA_PATH",
+        str(Path(__file__).parent / "data" / "yellow_tripdata_2024-*.parquet"),
+    )
 )
 MODEL_NAME = "llama-3.1-8b-instant"
 
@@ -23,7 +26,14 @@ _con = duckdb.connect()
 
 
 def _init_db() -> str:
-    _con.execute(f"CREATE TABLE taxi AS SELECT * FROM read_parquet('{DATA_PATH}')")
+    # VIEW, not TABLE: 12 months (~40M rows) is queried lazily from Parquet
+    # instead of being copied into memory at startup. The date filter drops
+    # the handful of records with corrupt timestamps outside 2024.
+    _con.execute(
+        f"CREATE VIEW taxi AS SELECT * FROM read_parquet('{DATA_PATH.as_posix()}') "
+        "WHERE tpep_pickup_datetime >= '2024-01-01' "
+        "AND tpep_pickup_datetime < '2025-01-01'"
+    )
     rows = _con.execute(
         "SELECT column_name, data_type "
         "FROM information_schema.columns "
