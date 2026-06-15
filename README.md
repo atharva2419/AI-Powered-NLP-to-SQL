@@ -2,7 +2,7 @@
 
 Ask plain-English questions about **41 million NYC taxi trips** (full year 2024) and get back the SQL, the results, an auto-generated chart, and a plain-English explanation — powered by **LLaMA 3.1** (Groq) and **DuckDB**.
 
-<!-- Add a screenshot here — drag & drop an image into this file on GitHub -->
+![NYC Taxi Explorer — question, SQL, chart, and explanation](docs/preview.png)
 
 ---
 

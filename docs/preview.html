@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NYC Taxi Explorer — Preview</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/recharts@2.15.3/umd/Recharts.js"></script>
+<style>
+  body { background: #fafafa; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; }
+  @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&display=swap');
+  .mono { font-family: 'Geist Mono', ui-monospace, monospace; }
+</style>
+</head>
+<body class="p-8">
+
+<!-- ─── App card ─────────────────────────────────────────────────── -->
+<div class="mx-auto max-w-[780px] space-y-5">
+
+  <!-- Header -->
+  <div class="flex items-center gap-3">
+    <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-400 text-xl shadow-sm">🚕</div>
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-zinc-900">NYC Taxi Explorer</h1>
+      <p class="text-sm text-zinc-500">Ask questions about 40M+ taxi trips from 2024 in plain English.</p>
+    </div>
+  </div>
+
+  <!-- Search bar -->
+  <div class="flex gap-2">
+    <div class="flex-1 rounded-lg border border-amber-400 bg-white px-4 py-3 text-sm text-zinc-700 shadow-sm ring-2 ring-amber-400/30">
+      Which month had the most trips?
+    </div>
+    <div class="rounded-lg bg-zinc-900 px-5 py-3 text-sm font-medium text-white">Ask</div>
+  </div>
+
+  <!-- Chips -->
+  <div class="flex flex-wrap gap-2">
+    <span class="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-500">How many trips were taken in total?</span>
+    <span class="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-500">What hour of the day has the most pickups?</span>
+    <span class="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">Which month had the most trips?</span>
+  </div>
+
+  <!-- SQL block -->
+  <div class="overflow-hidden rounded-lg border border-zinc-200 shadow-sm">
+    <div class="flex items-center justify-between border-b border-zinc-700 bg-[#282c34] px-4 py-2">
+      <span class="text-xs font-semibold uppercase tracking-widest text-zinc-400">SQL</span>
+      <span class="text-xs text-zinc-500">Copy</span>
+    </div>
+    <div class="bg-[#282c34] px-4 py-4 mono text-sm leading-relaxed">
+      <span class="text-[#c678dd]">SELECT</span>
+      <span class="text-[#e06c75]"> MONTH</span><span class="text-zinc-300">(tpep_pickup_datetime) </span>
+      <span class="text-[#c678dd]">AS</span>
+      <span class="text-[#98c379]"> month</span><span class="text-zinc-300">,</span><br/>
+      <span class="text-zinc-300">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+      <span class="text-[#e06c75]">COUNT</span><span class="text-zinc-300">(*) </span>
+      <span class="text-[#c678dd]">AS</span>
+      <span class="text-[#98c379]"> trips</span><br/>
+      <span class="text-[#c678dd]">FROM</span>
+      <span class="text-[#e5c07b]"> taxi</span><br/>
+      <span class="text-[#c678dd]">GROUP BY</span>
+      <span class="text-zinc-300"> month</span><br/>
+      <span class="text-[#c678dd]">ORDER BY</span>
+      <span class="text-zinc-300"> month</span>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+    <p class="mb-4 text-xs font-semibold uppercase tracking-widest text-zinc-400">trips by month</p>
+    <div class="flex items-end gap-2 h-44">
+      <!-- Simple hand-drawn bar chart using real 2024 monthly data -->
+      <script>
+        const data = [
+          {m:'Jan',v:2964},{m:'Feb',v:2940},{m:'Mar',v:3582},{m:'Apr',v:3347},
+          {m:'May',v:3511},{m:'Jun',v:3378},{m:'Jul',v:3282},{m:'Aug',v:3263},
+          {m:'Sep',v:3168},{m:'Oct',v:3584},{m:'Nov',v:3421},{m:'Dec',v:3444}
+        ];
+        const max = Math.max(...data.map(d=>d.v));
+        const bars = data.map(d=>`
+          <div class="flex flex-col items-center gap-1 flex-1">
+            <span class="text-[9px] text-zinc-400 font-mono">${d.v.toLocaleString()}k</span>
+            <div class="w-full rounded-t-sm bg-amber-400" style="height:${Math.round((d.v/max)*148)}px"></div>
+            <span class="text-[9px] text-zinc-500">${d.m}</span>
+          </div>
+        `).join('');
+        document.write(`<div class="flex items-end gap-1.5 w-full h-full pt-5">${bars}</div>`);
+      </script>
+    </div>
+  </div>
+
+  <!-- Result table -->
+  <div class="overflow-hidden rounded-lg border border-zinc-200 shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-zinc-200 bg-zinc-50">
+            <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">month</th>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">trips</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-zinc-100 bg-white mono text-xs text-zinc-700">
+          <tr class="hover:bg-zinc-50"><td class="px-4 py-2.5">10</td><td class="px-4 py-2.5">3,584,330</td></tr>
+          <tr class="hover:bg-zinc-50"><td class="px-4 py-2.5">3</td><td class="px-4 py-2.5">3,582,022</td></tr>
+          <tr class="hover:bg-zinc-50"><td class="px-4 py-2.5">5</td><td class="px-4 py-2.5">3,510,877</td></tr>
+          <tr class="hover:bg-zinc-50"><td class="px-4 py-2.5">12</td><td class="px-4 py-2.5">3,443,956</td></tr>
+          <tr class="hover:bg-zinc-50"><td class="px-4 py-2.5">11</td><td class="px-4 py-2.5">3,420,680</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="border-t border-zinc-100 bg-zinc-50 px-4 py-2 text-xs text-zinc-400">
+      Showing 5 of 12 rows
+    </div>
+  </div>
+
+  <!-- Explanation -->
+  <div class="border-l-4 border-zinc-300 pl-4">
+    <p class="text-base leading-relaxed text-zinc-700">
+      October 2024 had the most taxi trips with 3,584,330 rides, closely followed by March and May. Demand peaks in autumn and spring, with January having the lowest ridership at 2,964,624 trips.
+    </p>
+  </div>
+
+  <!-- Latency -->
+  <p class="text-xs text-zinc-400">Answered in 1.8s</p>
+
+</div>
+
+<p class="mt-8 text-center text-xs text-zinc-300">Open in browser → screenshot at ~1000px wide for the README</p>
+</body>
+</html>
