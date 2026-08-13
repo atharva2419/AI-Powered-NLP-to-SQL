@@ -31,8 +31,12 @@ jobs:
       - name: Validate the evaluation set
         # No API key and no spend: this only proves every reference query in
         # the golden set still parses, passes the SQL guard and executes.
+        # The real Parquet files are 700 MB and gitignored, so this runs
+        # against the same generated fixture the test suite uses.
         working-directory: backend
-        run: python -m eval.run --check
+        run: |
+          python -m data.fixture --out /tmp/taxi_fixture.parquet
+          TAXI_DATA_PATH=/tmp/taxi_fixture.parquet python -m eval.run --check
 
   frontend:
     name: Frontend
