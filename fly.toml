@@ -1,0 +1,57 @@
+# Fly.io deployment for the API. The frontend goes to Vercel separately.
+#
+#   fly launch --no-deploy --copy-config
+#   fly secrets set GROQ_API_KEY=... SAMPLE_DATA_URL=https://.../taxi_sample.parquet
+#   fly deploy
+#
+# SAMPLE_DATA_URL should point at a `taxi_sample.parquet` published as a GitHub
+# Release asset — see backend/data/make_sample.py. Without it the container
+# downloads a month from the TLC and samples it at boot, which works but makes
+# the first cold start slow.
+
+app = "nyc-taxi-nlsql"
+primary_region = "ewr"          # Newark — the data is about New York
+
+[build]
+  dockerfile = "backend/Dockerfile"
+
+[env]
+  PORT = "8000"
+  # The demo runs on a personal API key, so both limits are on.
+  RATE_LIMIT_ENABLED = "true"
+  RATE_LIMIT_PER_HOUR = "20"
+  RATE_LIMIT_GLOBAL_PER_DAY = "1000"
+  CACHE_ENABLED = "true"
+  # Cache aggressively: repeat visitors ask the example questions, and a hit
+  # costs nothing.
+  CACHE_TTL_SECONDS = "604800"
+  # Well under the 1 GB machine so DuckDB spills rather than getting OOM-killed.
+  DUCKDB_MEMORY_LIMIT = "512MB"
+  DUCKDB_THREADS = "2"
+  QUERY_TIMEOUT_SECONDS = "20"
+  SAMPLE_ROWS = "1000000"
+  CORS_ORIGINS = "https://nyc-taxi-nlsql.vercel.app,http://localhost:3000"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # Scale to zero between visitors — this is a portfolio demo, not a service.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 20
+    hard_limit = 40
+
+[[http_service.checks]]
+  grace_period = "60s"      # bootstrap may be fetching the sample
+  interval = "30s"
+  method = "GET"
+  timeout = "10s"
+  path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

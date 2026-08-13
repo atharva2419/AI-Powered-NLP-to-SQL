@@ -1,5 +1,4 @@
-import pytest
-from history import init_db, save_query, get_history
+from history import get_history, init_db, save_query
 
 
 # ---------------------------------------------------------------------------

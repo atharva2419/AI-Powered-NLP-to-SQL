@@ -199,8 +199,15 @@ export default function Home() {
         {!loading && result && (
           <div className="space-y-6">
 
+            {/* Throttled by the demo's budget — not a translation failure */}
+            {apiError && result.rateLimited && (
+              <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3">
+                <p className="text-sm text-sky-800">{apiError}</p>
+              </div>
+            )}
+
             {/* Friendly API/query error */}
-            {apiError && (
+            {apiError && !result.rateLimited && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
                 <p className="text-sm text-amber-800">{FRIENDLY_ERROR}</p>
                 <p className="mt-1 font-mono text-xs text-amber-600">{apiError}</p>
@@ -276,9 +283,10 @@ export default function Home() {
                       </tbody>
                     </table>
                   </div>
-                  {result.result.row_count > 10 && (
+                  {(result.result.row_count > 10 || result.result.truncated) && (
                     <div className="border-t border-zinc-100 bg-zinc-50 px-4 py-2 text-xs text-zinc-400">
                       Showing 10 of {result.result.row_count.toLocaleString()} rows
+                      {result.result.truncated && ' (result capped by the server)'}
                     </div>
                   )}
                 </div>
@@ -290,10 +298,26 @@ export default function Home() {
                   </p>
                 </div>
 
-                {/* Latency */}
-                <p className="text-xs text-zinc-400">
-                  Answered in {(result.latency_ms / 1000).toFixed(1)}s
-                </p>
+                {/* Latency + how the answer was produced */}
+                <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
+                  <span>Answered in {(result.latency_ms / 1000).toFixed(1)}s</span>
+                  {result.cached && (
+                    <span
+                      title="Served from cache — no LLM call was made"
+                      className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700"
+                    >
+                      cached
+                    </span>
+                  )}
+                  {(result.attempts ?? 1) > 1 && (
+                    <span
+                      title="The first query failed; the model was shown the database error and corrected itself"
+                      className="rounded-full bg-violet-50 px-2 py-0.5 font-medium text-violet-700"
+                    >
+                      self-corrected ({result.attempts} attempts)
+                    </span>
+                  )}
+                </div>
               </>
             )}
           </div>

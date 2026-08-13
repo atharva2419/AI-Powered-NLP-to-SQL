@@ -4,6 +4,7 @@ import tempfile
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 # Must be set before query_engine / history are imported — they read these at module level
 os.environ.setdefault("GROQ_API_KEY", "test-key-not-real")
@@ -42,3 +43,24 @@ os.environ["HISTORY_DB_PATH"] = str(Path(_tmp) / "history.db")
 
 # Make backend importable without installing it as a package
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+import cache  # noqa: E402
+import metrics  # noqa: E402
+import ratelimit  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def clean_process_state():
+    """Reset all cross-request state so tests cannot leak into each other.
+
+    The cache in particular would otherwise make a second identical question
+    return a stale answer from a previous test.
+    """
+    cache.init_db()
+    cache.clear()
+    metrics.reset()
+    ratelimit.reset()
+    yield
+    cache.clear()
+    metrics.reset()
+    ratelimit.reset()

@@ -1,9 +1,9 @@
 import json
-import os
 import sqlite3
-from pathlib import Path
 
-_DB_PATH = Path(os.getenv("HISTORY_DB_PATH", str(Path(__file__).parent / "data" / "history.db")))
+import config
+
+_DB_PATH = config.HISTORY_DB_PATH
 
 
 def init_db() -> None:

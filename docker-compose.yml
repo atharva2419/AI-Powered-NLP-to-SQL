@@ -7,16 +7,23 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      # Local development: no throttling, verbose logs.
+      RATE_LIMIT_ENABLED: "false"
+      LOG_LEVEL: INFO
     volumes:
-      # Mount local parquet file into the container — not baked into the image
-      # Run `python backend/data/download_data.py` first if you don't have it yet
+      # Parquet files stay on the host rather than in the image (~700 MB).
+      # Run `python backend/data/download_data.py` first; if the directory is
+      # empty the container bootstraps a sample on its own instead.
       - ./backend/data:/app/data
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/examples')"]
+      # /health checks that the taxi view is actually queryable, not just that
+      # the process is listening.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 45s   # parquet loading takes a few seconds on first start
+      start_period: 60s
 
   frontend:
     build:
@@ -28,4 +35,4 @@ services:
       - "3000:3000"
     depends_on:
       backend:
-        condition: service_healthy   # wait until backend passes its healthcheck
+        condition: service_healthy   # wait until the data is loaded and queryable

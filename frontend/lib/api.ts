@@ -4,6 +4,8 @@ export interface QueryResult {
   columns: string[];
   rows: unknown[][];
   row_count: number;
+  /** true when the database capped the result set at MAX_RESULT_ROWS */
+  truncated?: boolean;
   error?: string;
 }
 
@@ -12,7 +14,13 @@ export interface QueryResponse {
   result: QueryResult;
   explanation: string;
   latency_ms: number;
+  /** served from the response cache without calling the LLM */
+  cached?: boolean;
+  /** how many generation attempts it took; >1 means the model self-corrected */
+  attempts?: number;
   error?: string;
+  /** the demo's rate limit rejected this request (HTTP 429) */
+  rateLimited?: boolean;
 }
 
 export interface SchemaColumn {
@@ -50,7 +58,11 @@ export async function runQuery(question: string): Promise<QueryResponse> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question }),
   });
-  return res.json() as Promise<QueryResponse>;
+  const data = (await res.json()) as QueryResponse;
+  // A throttled request is not a failed translation — the UI phrases the two
+  // very differently, so the distinction has to survive the fetch.
+  if (res.status === 429) return { ...data, rateLimited: true };
+  return data;
 }
 
 export async function fetchHistory(): Promise<HistoryItem[]> {

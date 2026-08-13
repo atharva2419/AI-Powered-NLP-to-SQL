@@ -1,0 +1,532 @@
+{
+  "summary": {
+    "timestamp": "2026-08-13T23:12:47+00:00",
+    "model": "llama-3.1-8b-instant",
+    "total_cases": 36,
+    "execution_accuracy": 0.778,
+    "valid_sql_rate": 0.917,
+    "needed_self_correction": 3,
+    "recovered_by_self_correction": 0,
+    "exhausted_retries": 3,
+    "median_latency_ms": 7657,
+    "p95_latency_ms": 25731,
+    "by_category": {
+      "counting": {
+        "total": 4,
+        "correct": 4
+      },
+      "aggregation": {
+        "total": 7,
+        "correct": 6
+      },
+      "grouping": {
+        "total": 4,
+        "correct": 2
+      },
+      "time_series": {
+        "total": 6,
+        "correct": 6
+      },
+      "ranking": {
+        "total": 3,
+        "correct": 3
+      },
+      "ratio": {
+        "total": 3,
+        "correct": 2
+      },
+      "filtering": {
+        "total": 4,
+        "correct": 4
+      },
+      "multi_step": {
+        "total": 5,
+        "correct": 1
+      }
+    },
+    "by_difficulty": {
+      "easy": {
+        "total": 14,
+        "correct": 14
+      },
+      "medium": {
+        "total": 12,
+        "correct": 10
+      },
+      "hard": {
+        "total": 10,
+        "correct": 4
+      }
+    }
+  },
+  "outcomes": [
+    {
+      "id": "count-001",
+      "question": "How many trips were taken in total?",
+      "category": "counting",
+      "difficulty": "easy",
+      "reference_sql": "SELECT COUNT(*) AS total_trips FROM taxi",
+      "generated_sql": "SELECT COUNT(*) AS total_trips FROM taxi",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 518,
+      "failure": null
+    },
+    {
+      "id": "count-002",
+      "question": "How many trips had more than one passenger?",
+      "category": "counting",
+      "difficulty": "easy",
+      "reference_sql": "SELECT COUNT(*) AS trips FROM taxi WHERE passenger_count > 1",
+      "generated_sql": "SELECT COUNT(*) AS trips FROM taxi WHERE passenger_count > 1",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 526,
+      "failure": null
+    },
+    {
+      "id": "count-003",
+      "question": "How many distinct pickup zones are there?",
+      "category": "counting",
+      "difficulty": "easy",
+      "reference_sql": "SELECT COUNT(DISTINCT PULocationID) AS zones FROM taxi",
+      "generated_sql": "SELECT COUNT(DISTINCT PULocationID) AS num_zones FROM taxi",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 410,
+      "failure": null
+    },
+    {
+      "id": "count-004",
+      "question": "How many trips were paid for in cash?",
+      "category": "counting",
+      "difficulty": "medium",
+      "reference_sql": "SELECT COUNT(*) AS cash_trips FROM taxi WHERE payment_type = 2",
+      "generated_sql": "SELECT COUNT(*) AS cash_trips FROM taxi WHERE payment_type = 2",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 444,
+      "failure": null
+    },
+    {
+      "id": "agg-001",
+      "question": "What is the average fare amount?",
+      "category": "aggregation",
+      "difficulty": "easy",
+      "reference_sql": "SELECT ROUND(AVG(fare_amount), 2) AS avg_fare FROM taxi",
+      "generated_sql": "SELECT ROUND(AVG(fare_amount), 2) AS avg_fare FROM taxi",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 455,
+      "failure": null
+    },
+    {
+      "id": "agg-002",
+      "question": "What is the total revenue from all trips?",
+      "category": "aggregation",
+      "difficulty": "easy",
+      "reference_sql": "SELECT ROUND(SUM(total_amount), 2) AS total_revenue FROM taxi",
+      "generated_sql": "SELECT ROUND(SUM(total_amount), 2) AS revenue FROM taxi",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 551,
+      "failure": null
+    },
+    {
+      "id": "agg-003",
+      "question": "What is the longest trip distance recorded?",
+      "category": "aggregation",
+      "difficulty": "easy",
+      "reference_sql": "SELECT MAX(trip_distance) AS max_distance FROM taxi",
+      "generated_sql": "SELECT MAX(trip_distance) AS max_distance FROM taxi",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 697,
+      "failure": null
+    },
+    {
+      "id": "agg-004",
+      "question": "What is the median fare amount?",
+      "category": "aggregation",
+      "difficulty": "medium",
+      "reference_sql": "SELECT MEDIAN(fare_amount) AS median_fare FROM taxi",
+      "generated_sql": "SELECT ROUND(MEDIAN(fare_amount), 2) AS median_fare FROM taxi",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 4002,
+      "failure": null
+    },
+    {
+      "id": "agg-005",
+      "question": "What is the average tip amount on credit card trips?",
+      "category": "aggregation",
+      "difficulty": "medium",
+      "reference_sql": "SELECT ROUND(AVG(tip_amount), 2) AS avg_tip FROM taxi WHERE payment_type = 1",
+      "generated_sql": "SELECT ROUND(AVG(tip_amount), 2) AS avg_tip FROM taxi WHERE payment_type = 1",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 6738,
+      "failure": null
+    },
+    {
+      "id": "agg-006",
+      "question": "What is the average trip duration in minutes?",
+      "category": "aggregation",
+      "difficulty": "hard",
+      "reference_sql": "SELECT ROUND(AVG(date_diff('minute', tpep_pickup_datetime, tpep_dropoff_datetime)), 2) AS avg_minutes FROM taxi",
+      "generated_sql": "SELECT ROUND(AVG(date_diff('minute', tpep_pickup_datetime, tpep_dropoff_datetime))) AS avg_duration FROM taxi",
+      "valid_sql": true,
+      "correct": false,
+      "attempts": 1,
+      "latency_ms": 6903,
+      "failure": "wrong result: expected 1 row(s) ['avg_minutes'], got 1 row(s) ['avg_duration']"
+    },
+    {
+      "id": "agg-007",
+      "question": "What is the 95th percentile of fare amount?",
+      "category": "aggregation",
+      "difficulty": "hard",
+      "reference_sql": "SELECT QUANTILE_CONT(fare_amount, 0.95) AS p95_fare FROM taxi",
+      "generated_sql": "SELECT PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY fare_amount) AS fare_95th FROM taxi",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 7528,
+      "failure": null
+    },
+    {
+      "id": "group-001",
+      "question": "What is the average trip distance by payment type?",
+      "category": "grouping",
+      "difficulty": "easy",
+      "reference_sql": "SELECT payment_type, ROUND(AVG(trip_distance), 2) AS avg_distance FROM taxi GROUP BY payment_type ORDER BY payment_type",
+      "generated_sql": "SELECT payment_type, ROUND(AVG(trip_distance), 2) AS avg_distance FROM taxi GROUP BY payment_type ORDER BY payment_type",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 6741,
+      "failure": null
+    },
+    {
+      "id": "group-002",
+      "question": "How many trips were there per vendor?",
+      "category": "grouping",
+      "difficulty": "easy",
+      "reference_sql": "SELECT VendorID, COUNT(*) AS trips FROM taxi GROUP BY VendorID ORDER BY VendorID",
+      "generated_sql": "SELECT VendorID, COUNT(*) AS trips FROM taxi GROUP BY VendorID ORDER BY trips DESC",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 7652,
+      "failure": null
+    },
+    {
+      "id": "group-003",
+      "question": "What is the average total amount by passenger count?",
+      "category": "grouping",
+      "difficulty": "medium",
+      "reference_sql": "SELECT passenger_count, ROUND(AVG(total_amount), 2) AS avg_total FROM taxi GROUP BY passenger_count ORDER BY passenger_count",
+      "generated_sql": "SELECT ROUND(AVG(total_amount), 2) AS avg_amount FROM taxi GROUP BY passenger_count",
+      "valid_sql": true,
+      "correct": false,
+      "attempts": 1,
+      "latency_ms": 7623,
+      "failure": "wrong result: expected 11 row(s) ['passenger_count', 'avg_total'], got 11 row(s) ['avg_amount']"
+    },
+    {
+      "id": "group-004",
+      "question": "How many trips per rate code?",
+      "category": "grouping",
+      "difficulty": "medium",
+      "reference_sql": "SELECT RatecodeID, COUNT(*) AS trips FROM taxi GROUP BY RatecodeID ORDER BY RatecodeID",
+      "generated_sql": "SELECT RatecodeID, COUNT(*) AS trips FROM taxi GROUP BY RatecodeID",
+      "valid_sql": true,
+      "correct": false,
+      "attempts": 1,
+      "latency_ms": 6634,
+      "failure": "wrong result: expected 8 row(s) ['RatecodeID', 'trips'], got 8 row(s) ['RatecodeID', 'trips']"
+    },
+    {
+      "id": "time-001",
+      "question": "How many trips were there in each month?",
+      "category": "time_series",
+      "difficulty": "easy",
+      "reference_sql": "SELECT MONTH(tpep_pickup_datetime) AS month, COUNT(*) AS trips FROM taxi GROUP BY month ORDER BY month",
+      "generated_sql": "SELECT EXTRACT(MONTH FROM tpep_pickup_datetime) AS month, COUNT(*) AS trips FROM taxi GROUP BY month ORDER BY month",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 8693,
+      "failure": null
+    },
+    {
+      "id": "time-002",
+      "question": "How many pickups happen in each hour of the day?",
+      "category": "time_series",
+      "difficulty": "easy",
+      "reference_sql": "SELECT HOUR(tpep_pickup_datetime) AS hour, COUNT(*) AS trips FROM taxi GROUP BY hour ORDER BY hour",
+      "generated_sql": "SELECT HOUR(tpep_pickup_datetime) AS hour, COUNT(*) AS pickups FROM taxi GROUP BY hour ORDER BY hour",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 7701,
+      "failure": null
+    },
+    {
+      "id": "time-003",
+      "question": "What hour of the day has the most pickups?",
+      "category": "time_series",
+      "difficulty": "medium",
+      "reference_sql": "SELECT HOUR(tpep_pickup_datetime) AS hour, COUNT(*) AS trips FROM taxi GROUP BY hour ORDER BY trips DESC LIMIT 1",
+      "generated_sql": "SELECT HOUR(tpep_pickup_datetime) AS hour, COUNT(*) AS pickups FROM taxi GROUP BY HOUR(tpep_pickup_datetime) ORDER BY pickups DESC LIMIT 1",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 7683,
+      "failure": null
+    },
+    {
+      "id": "time-004",
+      "question": "Which month had the most trips?",
+      "category": "time_series",
+      "difficulty": "medium",
+      "reference_sql": "SELECT MONTH(tpep_pickup_datetime) AS month, COUNT(*) AS trips FROM taxi GROUP BY month ORDER BY trips DESC LIMIT 1",
+      "generated_sql": "SELECT EXTRACT(MONTH FROM tpep_pickup_datetime) AS month, COUNT(*) AS trips FROM taxi GROUP BY month ORDER BY trips DESC LIMIT 1",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 7662,
+      "failure": null
+    },
+    {
+      "id": "time-005",
+      "question": "What is the average fare by day of week?",
+      "category": "time_series",
+      "difficulty": "hard",
+      "reference_sql": "SELECT DAYOFWEEK(tpep_pickup_datetime) AS day_of_week, ROUND(AVG(fare_amount), 2) AS avg_fare FROM taxi GROUP BY day_of_week ORDER BY day_of_week",
+      "generated_sql": "SELECT EXTRACT(DOW FROM tpep_pickup_datetime) AS day_of_week, ROUND(AVG(fare_amount), 2) AS avg_fare FROM taxi GROUP BY day_of_week ORDER BY day_of_week",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 7787,
+      "failure": null
+    },
+    {
+      "id": "time-006",
+      "question": "How many trips started between 6am and 10am?",
+      "category": "time_series",
+      "difficulty": "medium",
+      "reference_sql": "SELECT COUNT(*) AS morning_trips FROM taxi WHERE HOUR(tpep_pickup_datetime) >= 6 AND HOUR(tpep_pickup_datetime) < 10",
+      "generated_sql": "SELECT COUNT(*) AS trips FROM taxi WHERE HOUR(tpep_pickup_datetime) >= 6 AND HOUR(tpep_pickup_datetime) < 10",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 7731,
+      "failure": null
+    },
+    {
+      "id": "rank-001",
+      "question": "What are the top 5 pickup locations by number of trips?",
+      "category": "ranking",
+      "difficulty": "easy",
+      "reference_sql": "SELECT PULocationID, COUNT(*) AS trips FROM taxi GROUP BY PULocationID ORDER BY trips DESC LIMIT 5",
+      "generated_sql": "SELECT PULocationID, COUNT(*) AS num_trips FROM taxi GROUP BY PULocationID ORDER BY num_trips DESC LIMIT 5",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 7717,
+      "failure": null
+    },
+    {
+      "id": "rank-002",
+      "question": "Which dropoff location has the highest average fare?",
+      "category": "ranking",
+      "difficulty": "medium",
+      "reference_sql": "SELECT DOLocationID, ROUND(AVG(fare_amount), 2) AS avg_fare FROM taxi GROUP BY DOLocationID ORDER BY avg_fare DESC LIMIT 1",
+      "generated_sql": "SELECT DOLocationID, ROUND(AVG(fare_amount), 2) AS avg_fare FROM taxi GROUP BY DOLocationID ORDER BY avg_fare DESC LIMIT 1",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 7701,
+      "failure": null
+    },
+    {
+      "id": "rank-003",
+      "question": "What are the 10 busiest pickup and dropoff location pairs?",
+      "category": "ranking",
+      "difficulty": "hard",
+      "reference_sql": "SELECT PULocationID, DOLocationID, COUNT(*) AS trips FROM taxi GROUP BY PULocationID, DOLocationID ORDER BY trips DESC LIMIT 10",
+      "generated_sql": "SELECT PULocationID, DOLocationID, COUNT(*) AS trips FROM taxi GROUP BY PULocationID, DOLocationID ORDER BY trips DESC LIMIT 10",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 7940,
+      "failure": null
+    },
+    {
+      "id": "ratio-001",
+      "question": "What percentage of trips are paid by credit card?",
+      "category": "ratio",
+      "difficulty": "medium",
+      "reference_sql": "SELECT ROUND(100.0 * SUM(CASE WHEN payment_type = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS pct_credit_card FROM taxi",
+      "generated_sql": "SELECT ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM taxi), 2) AS credit_card_pct FROM taxi WHERE payment_type = 1",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 7929,
+      "failure": null
+    },
+    {
+      "id": "ratio-002",
+      "question": "What is the average tip as a percentage of the fare?",
+      "category": "ratio",
+      "difficulty": "hard",
+      "reference_sql": "SELECT ROUND(100.0 * SUM(tip_amount) / SUM(fare_amount), 2) AS tip_pct FROM taxi WHERE fare_amount > 0",
+      "generated_sql": "SELECT ROUND(100.0 * SUM(tip_amount) / SUM(fare_amount), 2) AS tip_pct FROM taxi",
+      "valid_sql": true,
+      "correct": false,
+      "attempts": 1,
+      "latency_ms": 1657,
+      "failure": "wrong result: expected 1 row(s) ['tip_pct'], got 1 row(s) ['tip_pct']"
+    },
+    {
+      "id": "ratio-003",
+      "question": "What share of total revenue comes from tips?",
+      "category": "ratio",
+      "difficulty": "hard",
+      "reference_sql": "SELECT ROUND(100.0 * SUM(tip_amount) / SUM(total_amount), 2) AS tip_share FROM taxi",
+      "generated_sql": "SELECT ROUND(100.0 * SUM(tip_amount) / SUM(total_amount), 2) AS tip_share FROM taxi",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 6743,
+      "failure": null
+    },
+    {
+      "id": "filter-001",
+      "question": "What is the average fare for trips longer than 10 miles?",
+      "category": "filtering",
+      "difficulty": "easy",
+      "reference_sql": "SELECT ROUND(AVG(fare_amount), 2) AS avg_fare FROM taxi WHERE trip_distance > 10",
+      "generated_sql": "SELECT ROUND(AVG(fare_amount), 2) AS avg_fare FROM taxi WHERE trip_distance > 10",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 8587,
+      "failure": null
+    },
+    {
+      "id": "filter-002",
+      "question": "How many trips had no tip?",
+      "category": "filtering",
+      "difficulty": "easy",
+      "reference_sql": "SELECT COUNT(*) AS no_tip_trips FROM taxi WHERE tip_amount = 0",
+      "generated_sql": "SELECT COUNT(*) AS trips FROM taxi WHERE tip_amount = 0",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 7585,
+      "failure": null
+    },
+    {
+      "id": "filter-003",
+      "question": "How many trips had a congestion surcharge applied?",
+      "category": "filtering",
+      "difficulty": "medium",
+      "reference_sql": "SELECT COUNT(*) AS surcharged_trips FROM taxi WHERE congestion_surcharge > 0",
+      "generated_sql": "SELECT COUNT(*) AS trips FROM taxi WHERE congestion_surcharge > 0",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 7684,
+      "failure": null
+    },
+    {
+      "id": "filter-004",
+      "question": "What is the total amount collected in tolls?",
+      "category": "filtering",
+      "difficulty": "easy",
+      "reference_sql": "SELECT ROUND(SUM(tolls_amount), 2) AS total_tolls FROM taxi",
+      "generated_sql": "SELECT ROUND(SUM(tolls_amount), 2) AS total_tolls FROM taxi",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 7675,
+      "failure": null
+    },
+    {
+      "id": "multi-001",
+      "question": "For credit card trips, what is the average tip by passenger count?",
+      "category": "multi_step",
+      "difficulty": "hard",
+      "reference_sql": "SELECT passenger_count, ROUND(AVG(tip_amount), 2) AS avg_tip FROM taxi WHERE payment_type = 1 GROUP BY passenger_count ORDER BY passenger_count",
+      "generated_sql": "SELECT ROUND(AVG(CASE WHEN payment_type = 1 THEN tip_amount ELSE 0 END) / passenger_count, 2) AS avg_tip_per_passenger FROM taxi WHERE payment_type = 1",
+      "valid_sql": false,
+      "correct": false,
+      "attempts": 3,
+      "latency_ms": 25731,
+      "failure": "execution error: Binder Error: column \"passenger_count\" must appear in the GROUP BY clause or must be part of an aggregate function.\nEither add it to the GROUP BY list, or use \"ANY_VALUE(passenger_count)\" if the exact value of \"passenger_count\" is not important.\n\nLINE 1: ...(AVG(CASE WHEN payment_type = 1 THEN tip_amount ELSE 0 END) / passenger_count, 2) AS avg_tip_per_passenger FROM taxi WHERE...\n                                                                         ^"
+    },
+    {
+      "id": "multi-002",
+      "question": "What is the average fare per mile?",
+      "category": "multi_step",
+      "difficulty": "hard",
+      "reference_sql": "SELECT ROUND(SUM(fare_amount) / SUM(trip_distance), 2) AS fare_per_mile FROM taxi WHERE trip_distance > 0",
+      "generated_sql": "SELECT ROUND(AVG(fare_amount / trip_distance), 2) AS avg_fare_per_mile FROM taxi WHERE trip_distance > 0",
+      "valid_sql": true,
+      "correct": false,
+      "attempts": 1,
+      "latency_ms": 8677,
+      "failure": "wrong result: expected 1 row(s) ['fare_per_mile'], got 1 row(s) ['avg_fare_per_mile']"
+    },
+    {
+      "id": "multi-003",
+      "question": "How many trips per hour on average during each month?",
+      "category": "multi_step",
+      "difficulty": "hard",
+      "reference_sql": "SELECT MONTH(tpep_pickup_datetime) AS month, ROUND(COUNT(*) * 1.0 / COUNT(DISTINCT date_trunc('hour', tpep_pickup_datetime)), 2) AS avg_trips_per_hour FROM taxi GROUP BY month ORDER BY month",
+      "generated_sql": "SELECT EXTRACT(MONTH FROM tpep_pickup_datetime) AS month, EXTRACT(HOUR FROM tpep_pickup_datetime) AS hour, ROUND(AVG(trips) / 24, 2) AS avg_trips_per_hour FROM (SELECT EXTRACT(MONTH FROM tpep_pickup_datetime) AS month, EXTRACT(HOUR FROM tpep_pickup_datetime) AS hour, COUNT(*) AS trips FROM taxi GROUP BY EXTRACT(MONTH FROM tpep_pickup_datetime), EXTRACT(HOUR FROM tpep_pickup_datetime)) AS subquery GROUP BY month, hour",
+      "valid_sql": false,
+      "correct": false,
+      "attempts": 3,
+      "latency_ms": 28914,
+      "failure": "execution error: Binder Error: Referenced column \"tpep_pickup_datetime\" not found in FROM clause!\nCandidate bindings: \"trips\"\n\nLINE 1: SELECT * FROM (SELECT EXTRACT(MONTH FROM tpep_pickup_datetime) AS month, EXTRACT(HOUR FROM tpep_pick...\n                                                 ^"
+    },
+    {
+      "id": "multi-004",
+      "question": "Compare the average total amount for cash versus credit card trips",
+      "category": "multi_step",
+      "difficulty": "medium",
+      "reference_sql": "SELECT payment_type, ROUND(AVG(total_amount), 2) AS avg_total FROM taxi WHERE payment_type IN (1, 2) GROUP BY payment_type ORDER BY payment_type",
+      "generated_sql": "SELECT payment_type, ROUND(AVG(total_amount), 2) AS avg_amount FROM taxi WHERE payment_type IN (1, 2) GROUP BY payment_type ORDER BY payment_type",
+      "valid_sql": true,
+      "correct": true,
+      "attempts": 1,
+      "latency_ms": 9079,
+      "failure": null
+    },
+    {
+      "id": "multi-005",
+      "question": "What is the average speed in miles per hour?",
+      "category": "multi_step",
+      "difficulty": "hard",
+      "reference_sql": "SELECT ROUND(AVG(trip_distance / (date_diff('second', tpep_pickup_datetime, tpep_dropoff_datetime) / 3600.0)), 2) AS avg_mph FROM taxi WHERE date_diff('second', tpep_pickup_datetime, tpep_dropoff_datetime) > 0 AND trip_distance > 0",
+      "generated_sql": "SELECT ROUND(AVG(trip_distance) / (date_diff('minute', tpep_pickup_datetime, tpep_dropoff_datetime) * 1.0 / 60.0), 2) AS avg_speed FROM taxi",
+      "valid_sql": false,
+      "correct": false,
+      "attempts": 3,
+      "latency_ms": 27243,
+      "failure": "execution error: Binder Error: column \"tpep_pickup_datetime\" must appear in the GROUP BY clause or must be part of an aggregate function.\nEither add it to the GROUP BY list, or use \"ANY_VALUE(tpep_pickup_datetime)\" if the exact value of \"tpep_pickup_datetime\" is not important.\n\nLINE 1: ...* FROM (SELECT ROUND(AVG(trip_distance) / (date_diff('minute', tpep_pickup_datetime, tpep_dropoff_datetime) * 1.0 / 60...\n                                                                          ^"
+    }
+  ]
+}

@@ -87,6 +87,34 @@ describe('runQuery', () => {
     const result = await runQuery('bad question')
     expect(result.error).toBe('Query failed')
   })
+
+  it('flags a throttled response so the UI can phrase it differently', async () => {
+    mockFetch.mockReturnValueOnce(
+      Promise.resolve({
+        ok: false,
+        status: 429,
+        json: () => Promise.resolve({ error: 'Rate limit reached (20 questions per hour).' }),
+      })
+    )
+    const result = await runQuery('How many trips?')
+    expect(result.rateLimited).toBe(true)
+    expect(result.error).toMatch(/rate limit/i)
+  })
+
+  it('does not flag ordinary errors as throttled', async () => {
+    mockFetch.mockReturnValueOnce(
+      Promise.resolve({ ok: false, status: 400, json: () => Promise.resolve({ error: 'bad' }) })
+    )
+    const result = await runQuery('bad question')
+    expect(result.rateLimited).toBeUndefined()
+  })
+
+  it('passes through the cached and attempts fields', async () => {
+    mockFetch.mockReturnValueOnce(mockOk({ ...MOCK_RESPONSE, cached: true, attempts: 2 }))
+    const result = await runQuery('How many trips?')
+    expect(result.cached).toBe(true)
+    expect(result.attempts).toBe(2)
+  })
 })
 
 // ---------------------------------------------------------------------------

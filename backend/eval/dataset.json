@@ -1,0 +1,257 @@
+{
+  "description": "Golden evaluation set for NL->SQL over the NYC TLC yellow taxi schema. Each case pairs a natural-language question with hand-written reference SQL. Accuracy is measured by comparing the result set of the generated query against the result set of the reference query (execution accuracy), not by string-matching the SQL - there are many correct ways to write each of these.",
+  "cases": [
+    {
+      "id": "count-001",
+      "question": "How many trips were taken in total?",
+      "category": "counting",
+      "difficulty": "easy",
+      "reference_sql": "SELECT COUNT(*) AS total_trips FROM taxi"
+    },
+    {
+      "id": "count-002",
+      "question": "How many trips had more than one passenger?",
+      "category": "counting",
+      "difficulty": "easy",
+      "reference_sql": "SELECT COUNT(*) AS trips FROM taxi WHERE passenger_count > 1"
+    },
+    {
+      "id": "count-003",
+      "question": "How many distinct pickup zones are there?",
+      "category": "counting",
+      "difficulty": "easy",
+      "reference_sql": "SELECT COUNT(DISTINCT PULocationID) AS zones FROM taxi"
+    },
+    {
+      "id": "count-004",
+      "question": "How many trips were paid for in cash?",
+      "category": "counting",
+      "difficulty": "medium",
+      "reference_sql": "SELECT COUNT(*) AS cash_trips FROM taxi WHERE payment_type = 2"
+    },
+    {
+      "id": "agg-001",
+      "question": "What is the average fare amount?",
+      "category": "aggregation",
+      "difficulty": "easy",
+      "reference_sql": "SELECT ROUND(AVG(fare_amount), 2) AS avg_fare FROM taxi"
+    },
+    {
+      "id": "agg-002",
+      "question": "What is the total revenue from all trips?",
+      "category": "aggregation",
+      "difficulty": "easy",
+      "reference_sql": "SELECT ROUND(SUM(total_amount), 2) AS total_revenue FROM taxi"
+    },
+    {
+      "id": "agg-003",
+      "question": "What is the longest trip distance recorded?",
+      "category": "aggregation",
+      "difficulty": "easy",
+      "reference_sql": "SELECT MAX(trip_distance) AS max_distance FROM taxi"
+    },
+    {
+      "id": "agg-004",
+      "question": "What is the median fare amount?",
+      "category": "aggregation",
+      "difficulty": "medium",
+      "reference_sql": "SELECT MEDIAN(fare_amount) AS median_fare FROM taxi"
+    },
+    {
+      "id": "agg-005",
+      "question": "What is the average tip amount on credit card trips?",
+      "category": "aggregation",
+      "difficulty": "medium",
+      "reference_sql": "SELECT ROUND(AVG(tip_amount), 2) AS avg_tip FROM taxi WHERE payment_type = 1"
+    },
+    {
+      "id": "agg-006",
+      "question": "What is the average trip duration in minutes?",
+      "category": "aggregation",
+      "difficulty": "hard",
+      "reference_sql": "SELECT ROUND(AVG(date_diff('minute', tpep_pickup_datetime, tpep_dropoff_datetime)), 2) AS avg_minutes FROM taxi"
+    },
+    {
+      "id": "agg-007",
+      "question": "What is the 95th percentile of fare amount?",
+      "category": "aggregation",
+      "difficulty": "hard",
+      "reference_sql": "SELECT QUANTILE_CONT(fare_amount, 0.95) AS p95_fare FROM taxi"
+    },
+    {
+      "id": "group-001",
+      "question": "What is the average trip distance by payment type?",
+      "category": "grouping",
+      "difficulty": "easy",
+      "reference_sql": "SELECT payment_type, ROUND(AVG(trip_distance), 2) AS avg_distance FROM taxi GROUP BY payment_type ORDER BY payment_type"
+    },
+    {
+      "id": "group-002",
+      "question": "How many trips were there per vendor?",
+      "category": "grouping",
+      "difficulty": "easy",
+      "reference_sql": "SELECT VendorID, COUNT(*) AS trips FROM taxi GROUP BY VendorID ORDER BY VendorID"
+    },
+    {
+      "id": "group-003",
+      "question": "What is the average total amount by passenger count?",
+      "category": "grouping",
+      "difficulty": "medium",
+      "reference_sql": "SELECT passenger_count, ROUND(AVG(total_amount), 2) AS avg_total FROM taxi GROUP BY passenger_count ORDER BY passenger_count"
+    },
+    {
+      "id": "group-004",
+      "question": "How many trips per rate code?",
+      "category": "grouping",
+      "difficulty": "medium",
+      "reference_sql": "SELECT RatecodeID, COUNT(*) AS trips FROM taxi GROUP BY RatecodeID ORDER BY RatecodeID"
+    },
+    {
+      "id": "time-001",
+      "question": "How many trips were there in each month?",
+      "category": "time_series",
+      "difficulty": "easy",
+      "reference_sql": "SELECT MONTH(tpep_pickup_datetime) AS month, COUNT(*) AS trips FROM taxi GROUP BY month ORDER BY month"
+    },
+    {
+      "id": "time-002",
+      "question": "How many pickups happen in each hour of the day?",
+      "category": "time_series",
+      "difficulty": "easy",
+      "reference_sql": "SELECT HOUR(tpep_pickup_datetime) AS hour, COUNT(*) AS trips FROM taxi GROUP BY hour ORDER BY hour"
+    },
+    {
+      "id": "time-003",
+      "question": "What hour of the day has the most pickups?",
+      "category": "time_series",
+      "difficulty": "medium",
+      "reference_sql": "SELECT HOUR(tpep_pickup_datetime) AS hour, COUNT(*) AS trips FROM taxi GROUP BY hour ORDER BY trips DESC LIMIT 1"
+    },
+    {
+      "id": "time-004",
+      "question": "Which month had the most trips?",
+      "category": "time_series",
+      "difficulty": "medium",
+      "reference_sql": "SELECT MONTH(tpep_pickup_datetime) AS month, COUNT(*) AS trips FROM taxi GROUP BY month ORDER BY trips DESC LIMIT 1"
+    },
+    {
+      "id": "time-005",
+      "question": "What is the average fare by day of week?",
+      "category": "time_series",
+      "difficulty": "hard",
+      "reference_sql": "SELECT DAYOFWEEK(tpep_pickup_datetime) AS day_of_week, ROUND(AVG(fare_amount), 2) AS avg_fare FROM taxi GROUP BY day_of_week ORDER BY day_of_week"
+    },
+    {
+      "id": "time-006",
+      "question": "How many trips started between 6am and 10am?",
+      "category": "time_series",
+      "difficulty": "medium",
+      "reference_sql": "SELECT COUNT(*) AS morning_trips FROM taxi WHERE HOUR(tpep_pickup_datetime) >= 6 AND HOUR(tpep_pickup_datetime) < 10"
+    },
+    {
+      "id": "rank-001",
+      "question": "What are the top 5 pickup locations by number of trips?",
+      "category": "ranking",
+      "difficulty": "easy",
+      "reference_sql": "SELECT PULocationID, COUNT(*) AS trips FROM taxi GROUP BY PULocationID ORDER BY trips DESC LIMIT 5"
+    },
+    {
+      "id": "rank-002",
+      "question": "Which dropoff location has the highest average fare?",
+      "category": "ranking",
+      "difficulty": "medium",
+      "reference_sql": "SELECT DOLocationID, ROUND(AVG(fare_amount), 2) AS avg_fare FROM taxi GROUP BY DOLocationID ORDER BY avg_fare DESC LIMIT 1"
+    },
+    {
+      "id": "rank-003",
+      "question": "What are the 10 busiest pickup and dropoff location pairs?",
+      "category": "ranking",
+      "difficulty": "hard",
+      "reference_sql": "SELECT PULocationID, DOLocationID, COUNT(*) AS trips FROM taxi GROUP BY PULocationID, DOLocationID ORDER BY trips DESC LIMIT 10"
+    },
+    {
+      "id": "ratio-001",
+      "question": "What percentage of trips are paid by credit card?",
+      "category": "ratio",
+      "difficulty": "medium",
+      "reference_sql": "SELECT ROUND(100.0 * SUM(CASE WHEN payment_type = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS pct_credit_card FROM taxi"
+    },
+    {
+      "id": "ratio-002",
+      "question": "What is the average tip as a percentage of the fare?",
+      "category": "ratio",
+      "difficulty": "hard",
+      "reference_sql": "SELECT ROUND(100.0 * SUM(tip_amount) / SUM(fare_amount), 2) AS tip_pct FROM taxi WHERE fare_amount > 0"
+    },
+    {
+      "id": "ratio-003",
+      "question": "What share of total revenue comes from tips?",
+      "category": "ratio",
+      "difficulty": "hard",
+      "reference_sql": "SELECT ROUND(100.0 * SUM(tip_amount) / SUM(total_amount), 2) AS tip_share FROM taxi"
+    },
+    {
+      "id": "filter-001",
+      "question": "What is the average fare for trips longer than 10 miles?",
+      "category": "filtering",
+      "difficulty": "easy",
+      "reference_sql": "SELECT ROUND(AVG(fare_amount), 2) AS avg_fare FROM taxi WHERE trip_distance > 10"
+    },
+    {
+      "id": "filter-002",
+      "question": "How many trips had no tip?",
+      "category": "filtering",
+      "difficulty": "easy",
+      "reference_sql": "SELECT COUNT(*) AS no_tip_trips FROM taxi WHERE tip_amount = 0"
+    },
+    {
+      "id": "filter-003",
+      "question": "How many trips had a congestion surcharge applied?",
+      "category": "filtering",
+      "difficulty": "medium",
+      "reference_sql": "SELECT COUNT(*) AS surcharged_trips FROM taxi WHERE congestion_surcharge > 0"
+    },
+    {
+      "id": "filter-004",
+      "question": "What is the total amount collected in tolls?",
+      "category": "filtering",
+      "difficulty": "easy",
+      "reference_sql": "SELECT ROUND(SUM(tolls_amount), 2) AS total_tolls FROM taxi"
+    },
+    {
+      "id": "multi-001",
+      "question": "For credit card trips, what is the average tip by passenger count?",
+      "category": "multi_step",
+      "difficulty": "hard",
+      "reference_sql": "SELECT passenger_count, ROUND(AVG(tip_amount), 2) AS avg_tip FROM taxi WHERE payment_type = 1 GROUP BY passenger_count ORDER BY passenger_count"
+    },
+    {
+      "id": "multi-002",
+      "question": "What is the average fare per mile?",
+      "category": "multi_step",
+      "difficulty": "hard",
+      "reference_sql": "SELECT ROUND(SUM(fare_amount) / SUM(trip_distance), 2) AS fare_per_mile FROM taxi WHERE trip_distance > 0"
+    },
+    {
+      "id": "multi-003",
+      "question": "How many trips per hour on average during each month?",
+      "category": "multi_step",
+      "difficulty": "hard",
+      "reference_sql": "SELECT MONTH(tpep_pickup_datetime) AS month, ROUND(COUNT(*) * 1.0 / COUNT(DISTINCT date_trunc('hour', tpep_pickup_datetime)), 2) AS avg_trips_per_hour FROM taxi GROUP BY month ORDER BY month"
+    },
+    {
+      "id": "multi-004",
+      "question": "Compare the average total amount for cash versus credit card trips",
+      "category": "multi_step",
+      "difficulty": "medium",
+      "reference_sql": "SELECT payment_type, ROUND(AVG(total_amount), 2) AS avg_total FROM taxi WHERE payment_type IN (1, 2) GROUP BY payment_type ORDER BY payment_type"
+    },
+    {
+      "id": "multi-005",
+      "question": "What is the average speed in miles per hour?",
+      "category": "multi_step",
+      "difficulty": "hard",
+      "reference_sql": "SELECT ROUND(AVG(trip_distance / (date_diff('second', tpep_pickup_datetime, tpep_dropoff_datetime) / 3600.0)), 2) AS avg_mph FROM taxi WHERE date_diff('second', tpep_pickup_datetime, tpep_dropoff_datetime) > 0 AND trip_distance > 0"
+    }
+  ]
+}

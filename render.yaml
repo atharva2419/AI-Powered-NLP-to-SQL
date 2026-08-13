@@ -1,0 +1,41 @@
+# Render deployment for the API (alternative to fly.toml).
+#
+#   1. Push this repo to GitHub
+#   2. Render → New → Blueprint → point it at this file
+#   3. Set GROQ_API_KEY and SAMPLE_DATA_URL in the dashboard
+#
+# The free tier spins down after inactivity, so the first request after an idle
+# period pays a cold start. The container bootstraps its dataset on boot, which
+# is why the health check gets a generous grace period.
+
+services:
+  - type: web
+    name: nyc-taxi-nlsql-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false          # set in the dashboard, never in the repo
+      - key: SAMPLE_DATA_URL
+        sync: false          # URL of a prebuilt taxi_sample.parquet
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      - key: RATE_LIMIT_PER_HOUR
+        value: "20"
+      - key: RATE_LIMIT_GLOBAL_PER_DAY
+        value: "1000"
+      - key: CACHE_TTL_SECONDS
+        value: "604800"
+      - key: DUCKDB_MEMORY_LIMIT
+        value: "400MB"       # free tier gives 512MB total
+      - key: DUCKDB_THREADS
+        value: "2"
+      - key: QUERY_TIMEOUT_SECONDS
+        value: "20"
+      - key: SAMPLE_ROWS
+        value: "1000000"
+      - key: CORS_ORIGINS
+        value: "https://nyc-taxi-nlsql.vercel.app,http://localhost:3000"
