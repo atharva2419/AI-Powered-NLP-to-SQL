@@ -15,6 +15,7 @@ import {
 } from '@/lib/api';
 import ResultChart from '@/components/ResultChart';
 import { GLOSSARY } from '@/lib/glossary';
+import { decodeValue, formatColumnName, formatValue } from '@/lib/format';
 
 SyntaxHighlighter.registerLanguage('sql', sql);
 
@@ -256,9 +257,10 @@ export default function Home() {
                           {result.result.columns.map((col) => (
                             <th
                               key={col}
+                              title={GLOSSARY[col] ?? col}
                               className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 whitespace-nowrap"
                             >
-                              {col}
+                              {formatColumnName(col)}
                             </th>
                           ))}
                         </tr>
@@ -266,18 +268,26 @@ export default function Home() {
                       <tbody className="divide-y divide-zinc-100 bg-white">
                         {displayRows.map((row, i) => (
                           <tr key={i} className="hover:bg-zinc-50 transition-colors">
-                            {(row as unknown[]).map((cell, j) => (
-                              <td
-                                key={j}
-                                className="px-4 py-2.5 font-mono text-xs text-zinc-700 whitespace-nowrap"
-                              >
-                                {cell === null || cell === undefined ? (
-                                  <span className="text-zinc-400">null</span>
-                                ) : (
-                                  String(cell)
-                                )}
-                              </td>
-                            ))}
+                            {(row as unknown[]).map((cell, j) => {
+                              const col = result.result.columns[j];
+                              const decoded = decodeValue(col, cell);
+                              return (
+                                <td
+                                  key={j}
+                                  // Decoded codes keep the raw value in the
+                                  // tooltip — someone writing their own SQL
+                                  // still needs to know it was a 1.
+                                  title={decoded ? `${col} = ${String(cell)}` : undefined}
+                                  className="px-4 py-2.5 font-mono text-xs text-zinc-700 whitespace-nowrap"
+                                >
+                                  {cell === null || cell === undefined ? (
+                                    <span className="text-zinc-400">null</span>
+                                  ) : (
+                                    formatValue(col, cell)
+                                  )}
+                                </td>
+                              );
+                            })}
                           </tr>
                         ))}
                       </tbody>

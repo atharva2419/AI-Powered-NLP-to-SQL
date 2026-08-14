@@ -5,7 +5,7 @@
  */
 export const GLOSSARY: Record<string, string> = {
   VendorID:
-    "Which company provided the trip record — 1 = Creative Mobile Technologies, 2 = VeriFone.",
+    "Which company provided the trip record — 1 = Creative Mobile Technologies, 2 = Curb Mobility (formerly VeriFone), 6 = Myle, 7 = Helix.",
   tpep_pickup_datetime:
     "Date and time the meter was engaged (trip start). Ask about hours, days, or months.",
   tpep_dropoff_datetime:
@@ -15,7 +15,7 @@ export const GLOSSARY: Record<string, string> = {
   trip_distance:
     "Trip distance in miles, as reported by the taximeter.",
   RatecodeID:
-    "Rate type — 1 = standard, 2 = JFK, 3 = Newark, 4 = Nassau/Westchester, 5 = negotiated, 6 = group ride.",
+    "Rate type — 1 = standard, 2 = JFK, 3 = Newark, 4 = Nassau/Westchester, 5 = negotiated, 6 = group ride, 99 = unknown (467k trips use it).",
   store_and_fwd_flag:
     "Y if the record was held in vehicle memory before sending (no server connection), otherwise N.",
   PULocationID:
@@ -23,7 +23,7 @@ export const GLOSSARY: Record<string, string> = {
   DOLocationID:
     "TLC taxi zone where the meter was disengaged (dropoff zone).",
   payment_type:
-    "How the trip was paid — 1 = credit card, 2 = cash, 3 = no charge, 4 = dispute, 5 = unknown, 6 = voided.",
+    "How the trip was paid — 1 = credit card, 2 = cash, 3 = no charge, 4 = dispute, 5 = unknown, 6 = voided. 0 is undocumented but covers 10% of 2024 (4.1M trips, averaging 18 miles vs ~3.5 elsewhere) — treat those separately.",
   fare_amount:
     "Meter fare based on time and distance, in dollars.",
   extra:

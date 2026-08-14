@@ -96,9 +96,9 @@ _SQL_SYSTEM_PROMPT = """You are an expert DuckDB SQL analyst. Convert the user's
 Schema: {schema}
 
 Domain rules:
-- payment_type is an integer code: 1=credit card, 2=cash, 3=no charge, 4=dispute, 5=unknown, 6=voided trip.
+- payment_type is an integer code: 1=credit card, 2=cash, 3=no charge, 4=dispute, 5=unknown, 6=voided trip. Code 0 is undocumented and covers ~10% of 2024; those rows also have null RatecodeID and are outliers on distance, so keep them as their own group rather than merging them into another code.
 - VendorID: 1=Creative Mobile Technologies, 2=Curb Mobility, 6=Myle, 7=Helix.
-- RatecodeID: 1=standard rate, 2=JFK, 3=Newark, 4=Nassau/Westchester, 5=negotiated fare, 6=group ride.
+- RatecodeID: 1=standard rate, 2=JFK, 3=Newark, 4=Nassau/Westchester, 5=negotiated fare, 6=group ride, 99=unknown. It is null for ~10% of rows, so use a filter that tolerates nulls unless the question is about rate codes.
 - PULocationID/DOLocationID are TLC zone IDs, not names. There is no borough or zone-name column.
 - total_amount includes tips and surcharges; fare_amount does not.
 - Timestamps are tpep_pickup_datetime and tpep_dropoff_datetime. The data covers 2024 only.

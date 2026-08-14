@@ -1,9 +1,12 @@
+import { formatValue } from "./format";
+
 export interface ChartSpec {
   type: "stat" | "bar" | "line";
   /** label of the value column (y-axis / stat label) */
   valueLabel: string;
   /** label of the category column (x-axis) — absent for stat */
   categoryLabel?: string;
+  /** x is display-ready: coded columns are already decoded to their labels */
   data: { x: string; y: number }[];
 }
 
@@ -36,7 +39,9 @@ export function detectChart(columns: string[], rows: unknown[][]): ChartSpec | n
     rows.length <= MAX_CHART_ROWS &&
     rows.every((r) => isNumeric(r[1]))
   ) {
-    const data = rows.map((r) => ({ x: String(r[0]), y: r[1] as number }));
+    // Decode here rather than in the component so the axis, the tooltip and
+    // the table all show the same label for the same value.
+    const data = rows.map((r) => ({ x: formatValue(columns[0], r[0]), y: r[1] as number }));
     return {
       type: TIME_PATTERN.test(columns[0]) ? "line" : "bar",
       valueLabel: columns[1],
@@ -48,7 +53,10 @@ export function detectChart(columns: string[], rows: unknown[][]): ChartSpec | n
   return null;
 }
 
-export function formatStatValue(value: number): string {
-  if (Number.isInteger(value)) return value.toLocaleString();
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+export function formatStatValue(value: number, column?: string): string {
+  // With a column name available the value can pick up its unit ($ or %);
+  // without one it falls back to a plain grouped number.
+  if (column) return formatValue(column, value);
+  if (Number.isInteger(value)) return value.toLocaleString('en-US');
+  return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
 }
