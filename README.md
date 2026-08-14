@@ -8,16 +8,16 @@ Ask plain-English questions about **41 million NYC taxi trips** (full year 2024)
 
 ## How good is it, actually?
 
-Measured, not asserted. `backend/eval/` runs a hand-written golden set of 36
+Measured, not asserted. `backend/eval/` runs a hand-written golden set of 42
 questions and scores **execution accuracy** — a generated query counts as
 correct only when its result set matches hand-written reference SQL.
 
-| | Baseline prompt | + few-shot exemplars |
-|---|---|---|
-| **Execution accuracy** | 64% | **78%** |
-| Valid SQL rate | 100% | 92% |
-| Needed a second attempt | 11 / 36 | 3 / 36 |
-| Median latency | 4.7 s | 7.7 s |
+| | Baseline prompt | + few-shot exemplars | + zone lookup |
+|---|---|---|---|
+| **Execution accuracy** | 64% | 78% | **83%** |
+| Valid SQL rate | 100% | 92% | 93% |
+| Needed a second attempt | 11 / 36 | 3 / 36 | 3 / 42 |
+| Cases | 36 | 36 | 42 |
 
 Full breakdowns by category and difficulty, plus every failure with its
 generated SQL: **[docs/eval-report.md](docs/eval-report.md)** (baseline kept at
@@ -36,9 +36,16 @@ so the valid-SQL rate fell from 100% to 92%. The longer prompt also costs about
 3 seconds of median latency. Accuracy was the right thing to buy with that; a
 latency-sensitive deployment might not agree.
 
-**On precision.** Repeated runs of the same 36 cases land within about 3 points
-of each other even at temperature 0, so the 64% → 78% improvement is real but
-"78% vs 80%" would not be. Thirty-six cases is enough to compare two prompts,
+**Zone lookup paid for itself.** Joining the TLC zone names into the table
+added 6 questions about boroughs and airports — all 6 correct on the first
+attempt — while the original 36 scored exactly as before it (28/36). The
+alternative was to leave zones in a separate table and let the model write the
+joins; see [docs/architecture.md](docs/architecture.md) for why denormalising
+won, and what it cost.
+
+**On precision.** Repeated runs of the same cases land within about 3 points of
+each other even at temperature 0, so the 64% → 83% improvement is real but
+"83% vs 81%" would not be. Forty-two cases is enough to compare two prompts,
 not enough to detect a small regression.
 
 `python -m eval.run --check` re-runs every reference query without calling the
@@ -51,14 +58,15 @@ LLM, so CI can prove the golden set still matches the schema for free.
 - **Natural language → SQL** — type a question, get a DuckDB query back
 - **Self-correcting** — when generated SQL fails, the database's error is fed back to the model as a correction turn instead of shown to the user
 - **41M rows, lazily** — DuckDB scans a view over 12 monthly Parquet files; nothing is loaded into memory at startup and aggregates return in under half a second
+- **Real place names** — the TLC zone lookup is joined in, so you can ask about *JFK Airport* or *Manhattan to Brooklyn* instead of memorising that JFK is `LocationID 132`
 - **Four-layer SQL guard** — statement-type validation using DuckDB's own parser, a leading-keyword check, a filesystem-function denylist, and a row cap pushed into the query
 - **Response caching** — temperature-0 generation makes questions deterministic, so repeat questions skip both LLM calls entirely
 - **Rate limited** — sliding window per IP plus a daily global ceiling, so a public demo can't drain a personal API key
 - **Auto-charts** — a stat card for single values, a bar chart for category breakdowns, a line chart for time series
 - **Query history** — every successful query is saved to SQLite; click any past query to restore it
-- **Column glossary** — all 19 columns in plain English, including what coded values like `payment_type = 1` mean
+- **Column glossary** — all 23 columns in plain English, including what coded values like `payment_type = 1` mean
 - **Observable** — `/health` verifies the data is queryable, `/api/metrics` reports cache hit rate, latency percentiles and error counts
-- **Fully tested** — 165 backend tests (pytest) + 59 frontend tests (Jest + RTL), plus lint, type-check and Docker builds in CI
+- **Fully tested** — 177 backend tests (pytest) + 86 frontend tests (Jest + RTL), plus lint, type-check and Docker builds in CI
 
 ---
 
@@ -148,11 +156,11 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Running the tests and the eval
 
 ```bash
-# Backend — 165 tests
+# Backend — 177 tests
 pytest backend/tests/ -v
 ruff check backend/
 
-# Frontend — 59 tests
+# Frontend — 86 tests
 cd frontend && npm test && npx tsc --noEmit
 
 # Evaluation
@@ -200,7 +208,7 @@ and `RATE_LIMIT_GLOBAL_PER_DAY` to bound what a public demo can cost you.
 |--------|----------|-------------|
 | `POST` | `/api/query` | Translate a question to SQL and run it |
 | `GET` | `/api/examples` | Six example questions |
-| `GET` | `/api/schema` | All 19 taxi table columns with types |
+| `GET` | `/api/schema` | All 23 taxi table columns with types |
 | `GET` | `/api/history` | Last 20 successful queries (SQLite) |
 | `GET` | `/api/metrics` | Cache hit rate, latency percentiles, error counts |
 | `GET` | `/health` | Liveness — confirms the taxi view is queryable |
@@ -255,13 +263,14 @@ NL-SQL/
 │   ├── history.py           # SQLite query history
 │   ├── config.py            # every tunable, read from the environment
 │   ├── eval/
-│   │   ├── dataset.json     # 36 golden questions with reference SQL
+│   │   ├── dataset.json     # 42 golden questions with reference SQL
 │   │   └── run.py           # execution-accuracy harness + report generator
 │   ├── data/
+│   │   ├── taxi_zone_lookup.csv  # 265 TLC zones — committed, 12 KB
 │   │   ├── download_data.py # fetch the full 12-month dataset
 │   │   ├── make_sample.py   # month-stratified sample for deployment
 │   │   └── bootstrap.py     # ensure data exists before the API starts
-│   └── tests/               # 165 tests
+│   └── tests/               # 177 tests
 ├── frontend/
 │   ├── app/page.tsx         # search, results, chart, history, glossary
 │   ├── components/ResultChart.tsx
@@ -283,7 +292,7 @@ NL-SQL/
 |-------|------------|
 | LLM | LLaMA 3.1 8B via [Groq](https://console.groq.com) |
 | Query engine | [DuckDB](https://duckdb.org) (in-process, no server) |
-| Data | NYC TLC Yellow Taxi Parquet (41M rows, full year 2024, ~700 MB) |
+| Data | NYC TLC Yellow Taxi Parquet (41M rows, full year 2024, ~700 MB) + the 265-row TLC zone lookup |
 | Backend | Python · FastAPI · Pydantic |
 | Storage | SQLite (history + response cache) |
 | Frontend | Next.js 16 · React 19 · Tailwind CSS v4 |

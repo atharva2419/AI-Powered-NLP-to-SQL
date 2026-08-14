@@ -173,6 +173,61 @@ class TestEvaluateCase:
         assert "reference SQL is broken" in outcome["failure"]
 
 
+class TestRescore:
+    """Re-scoring stored output against corrected reference SQL.
+
+    Generation is expensive and non-deterministic; scoring is neither. Fixing
+    a stale reference should not require paying to regenerate, nor let
+    run-to-run variance be mistaken for the effect of the fix.
+    """
+
+    def _outcome(self, generated_sql, **kwargs):
+        base = {
+            "id": "t-1", "question": "q", "category": "counting", "difficulty": "easy",
+            "reference_sql": "SELECT COUNT(*) AS c FROM taxi", "generated_sql": generated_sql,
+            "valid_sql": True, "correct": False, "attempts": 1, "latency_ms": 10,
+            "failure": "wrong result",
+        }
+        return {**base, **kwargs}
+
+    def _case(self, reference_sql):
+        return [{"id": "t-1", "question": "q", "category": "counting",
+                 "difficulty": "easy", "reference_sql": reference_sql}]
+
+    def test_a_corrected_reference_can_flip_a_failure_to_a_pass(self):
+        outcomes = [self._outcome("SELECT COUNT(DISTINCT payment_type) AS n FROM taxi")]
+        rescored = evalrun.rescore(outcomes, self._case(
+            "SELECT COUNT(DISTINCT payment_type) AS pt FROM taxi"))
+        assert rescored[0]["correct"] is True
+        assert rescored[0]["failure"] is None
+
+    def test_a_corrected_reference_can_flip_a_pass_to_a_failure(self):
+        outcomes = [self._outcome("SELECT COUNT(*) AS c FROM taxi", correct=True, failure=None)]
+        rescored = evalrun.rescore(outcomes, self._case("SELECT COUNT(DISTINCT VendorID) AS v FROM taxi"))
+        assert rescored[0]["correct"] is False
+
+    def test_stores_the_new_reference_sql(self):
+        outcomes = [self._outcome("SELECT COUNT(*) AS c FROM taxi")]
+        evalrun.rescore(outcomes, self._case("SELECT COUNT(1) AS c FROM taxi"))
+        assert outcomes[0]["reference_sql"] == "SELECT COUNT(1) AS c FROM taxi"
+
+    def test_broken_generated_sql_is_marked_invalid(self):
+        outcomes = [self._outcome("SELECT nope FROM taxi", valid_sql=True)]
+        rescored = evalrun.rescore(outcomes, self._case("SELECT COUNT(*) AS c FROM taxi"))
+        assert rescored[0]["valid_sql"] is False
+        assert "execution error" in rescored[0]["failure"]
+
+    def test_outcomes_without_generated_sql_are_left_alone(self):
+        outcomes = [self._outcome(None, failure="rejected by guard")]
+        rescored = evalrun.rescore(outcomes, self._case("SELECT COUNT(*) AS c FROM taxi"))
+        assert rescored[0]["failure"] == "rejected by guard"
+
+    def test_unknown_ids_are_left_alone(self):
+        outcomes = [self._outcome("SELECT COUNT(*) AS c FROM taxi", id="gone")]
+        rescored = evalrun.rescore(outcomes, self._case("SELECT 1"))
+        assert rescored[0]["correct"] is False  # untouched
+
+
 class TestSummary:
     def _outcome(self, **kwargs):
         base = {"correct": True, "valid_sql": True, "attempts": 1, "latency_ms": 100,

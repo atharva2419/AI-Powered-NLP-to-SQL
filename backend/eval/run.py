@@ -147,6 +147,40 @@ def evaluate_case(case: dict) -> dict:
     return outcome
 
 
+def rescore(outcomes: list[dict], cases: list[dict]) -> list[dict]:
+    """Re-score a finished run against the current reference SQL.
+
+    Generation is the expensive, non-deterministic half of an evaluation;
+    scoring is neither. When a reference query is corrected — because the
+    schema changed under it, or because it was simply wrong — the stored
+    model output is still perfectly good evidence. Re-executing both sides
+    gives an exact new score without paying to regenerate, and without
+    letting run-to-run variance masquerade as the effect of the fix.
+    """
+    by_id = {c["id"]: c for c in cases}
+    for outcome in outcomes:
+        case = by_id.get(outcome["id"])
+        if case is None or not outcome.get("generated_sql"):
+            continue
+
+        expected = query_engine.run_query(case["reference_sql"])
+        actual = query_engine.run_query(outcome["generated_sql"])
+
+        outcome["reference_sql"] = case["reference_sql"]
+        outcome["valid_sql"] = "error" not in actual
+        outcome["correct"] = results_match(expected, actual)
+        if "error" in actual:
+            outcome["failure"] = f"execution error: {actual['error']}"
+        elif not outcome["correct"]:
+            outcome["failure"] = (
+                f"wrong result: expected {len(expected['rows'])} row(s), "
+                f"got {len(actual['rows'])} row(s)"
+            )
+        else:
+            outcome["failure"] = None
+    return outcomes
+
+
 def check_references(cases: list[dict]) -> int:
     """Execute every reference query without calling the LLM.
 
@@ -272,13 +306,25 @@ def main() -> int:
     parser.add_argument("--from-json", type=Path,
                         help="re-render a report from a previous run's raw results, "
                              "without calling the LLM again")
+    parser.add_argument("--rescore", action="store_true",
+                        help="with --from-json, re-score the stored model output against "
+                             "the current reference SQL (re-runs queries, not the LLM)")
     args = parser.parse_args()
 
     if args.from_json:
         stored = json.loads(args.from_json.read_text(encoding="utf-8"))
         outcomes = stored["outcomes"]
+        if args.rescore:
+            outcomes = rescore(outcomes, load_cases())
         summary = {**summarize(outcomes), "timestamp": stored["summary"]["timestamp"],
                    "model": stored["summary"]["model"]}
+        if args.json_out:
+            args.json_out.parent.mkdir(parents=True, exist_ok=True)
+            args.json_out.write_text(
+                json.dumps({"summary": summary, "outcomes": outcomes}, indent=2),
+                encoding="utf-8",
+            )
+            print(f"raw results written to {args.json_out}")
         if args.out:
             args.out.parent.mkdir(parents=True, exist_ok=True)
             args.out.write_text(render_markdown(summary, outcomes), encoding="utf-8")

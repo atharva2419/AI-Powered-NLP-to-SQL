@@ -69,6 +69,45 @@ return in well under a second.
 The date predicate is not cosmetic: the raw TLC files contain a handful of rows
 with timestamps in 2002 and 2098, which otherwise show up in every time series.
 
+### Zone names are denormalised, not joined
+
+`PULocationID = 132` is JFK. Nobody knows that, so the raw schema makes the
+most natural questions — "average fare from JFK to Midtown" — impossible to
+ask. The TLC publishes a 265-row lookup mapping location IDs to borough and
+zone name. Two ways to use it:
+
+**A. Denormalise** — `LEFT JOIN` it into the `taxi` view so `pickup_zone` and
+`pickup_borough` are just columns.
+**B. Expose a `zones` table** and let the model write the joins.
+
+A is not free. Measured on the full 41M rows:
+
+| Query | Plain view | With both joins |
+|---|---|---|
+| `COUNT(*)` | 116 ms | 313 ms |
+| `AVG(fare_amount)` | 148 ms | 340 ms |
+| `GROUP BY payment_type` | 133 ms | 342 ms |
+
+About **200 ms, paid by every query** — including the ones that never mention a
+zone. DuckDB will not eliminate the unused joins even with a `PRIMARY KEY` on
+`LocationID`, because it still has to read both location-ID columns to satisfy
+them, which defeats projection pushdown on the Parquet scan.
+
+A won anyway. A response costs 1–7 s, almost all of it two LLM round trips, so
+200 ms is 3–10% of wall clock — while writing a correct multi-table join is the
+single thing an 8B model fails at most reliably. This trades compute I have
+plenty of for accuracy I am short of.
+
+The eval backs the choice rather than just asserting it: all 6 new zone
+questions were correct on the first attempt, and the original 36 scored exactly
+as they had before the change (28/36). If those numbers had gone the other way,
+option B was the fallback.
+
+The join is `LEFT`, not `INNER`: about 4M rows carry location IDs with no
+lookup entry, and an inner join would have silently dropped them from every
+query in the application — quietly changing the answer to "how many trips were
+there?".
+
 ### The SQL guard
 
 The model is untrusted input, so its output is validated in four layers
@@ -148,6 +187,15 @@ CI runs `python -m eval.run --check`, which executes every reference query
 without calling the LLM. It costs nothing, needs no API key, and catches the
 golden set drifting out of sync with the schema.
 
+`--rescore` re-scores a finished run against corrected reference SQL by
+re-executing the stored model output. Generation is the expensive,
+non-deterministic half of an evaluation; scoring is neither. When adding the
+zone columns made one reference query stale — "how many distinct pickup
+zones?" had counted location IDs, because before the join there was nothing
+else to count — this recomputed the score exactly, without paying to
+regenerate and without letting run-to-run variance masquerade as the effect of
+the fix.
+
 ## What I would change with more time
 
 - **Streaming explanations over SSE.** The explanation is generated token by
@@ -163,6 +211,7 @@ golden set drifting out of sync with the schema.
   aggregations where the model puts a bare column in the SELECT alongside an
   aggregate. A stricter correction prompt that names the offending column, or a
   larger model for questions the guard flags as complex, would likely close them.
-- **Zone names.** `PULocationID` is an opaque integer; joining the TLC zone
-  lookup would let people ask about neighbourhoods instead of IDs, which is
-  what they actually want.
+- **Reclaiming the join cost.** The zone columns tax every query ~200 ms even
+  when unused. Splitting the view in two and picking one based on whether the
+  question mentions a place would recover it, at the cost of a routing decision
+  that can itself be wrong.

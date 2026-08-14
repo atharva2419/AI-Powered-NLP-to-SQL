@@ -1,19 +1,19 @@
 # Evaluation report
 
-_Generated 2026-08-13T23:12:47+00:00 · model `llama-3.1-8b-instant`_
+_Generated 2026-08-14T01:12:34+00:00 · model `llama-3.1-8b-instant`_
 
 Execution accuracy on a hand-written golden set: a generated query is
 correct when its result set matches the reference query's result set.
 
 | Metric | Value |
 |--------|-------|
-| Execution accuracy | **78%** |
-| Valid SQL rate | 92% |
-| Cases | 36 |
+| Execution accuracy | **83%** |
+| Valid SQL rate | 93% |
+| Cases | 42 |
 | Recovered by self-correction | 0 |
 | Exhausted all retries | 3 |
-| Median latency | 7657 ms |
-| p95 latency | 25731 ms |
+| Median latency | 10106 ms |
+| p95 latency | 12241 ms |
 
 ## By category
 
@@ -22,59 +22,54 @@ correct when its result set matches the reference query's result set.
 | aggregation | 86% | 7 |
 | counting | 100% | 4 |
 | filtering | 100% | 4 |
-| grouping | 50% | 4 |
+| grouping | 100% | 4 |
 | multi_step | 20% | 5 |
 | ranking | 100% | 3 |
-| ratio | 67% | 3 |
+| ratio | 33% | 3 |
 | time_series | 100% | 6 |
+| zones | 100% | 6 |
 
 ## By difficulty
 
 | Difficulty | Accuracy | Cases |
 |------------|----------|-------|
-| easy | 100% | 14 |
-| medium | 83% | 12 |
-| hard | 40% | 10 |
+| easy | 100% | 16 |
+| medium | 87% | 15 |
+| hard | 55% | 11 |
 
-## Failures (8)
+## Failures (7)
 
-### `agg-006` — What is the average trip duration in minutes?
+### `agg-004` — What is the median fare amount?
 
-- **Why:** wrong result: expected 1 row(s) ['avg_minutes'], got 1 row(s) ['avg_duration']
-- **Expected:** `SELECT ROUND(AVG(date_diff('minute', tpep_pickup_datetime, tpep_dropoff_datetime)), 2) AS avg_minutes FROM taxi`
-- **Generated:** `SELECT ROUND(AVG(date_diff('minute', tpep_pickup_datetime, tpep_dropoff_datetime))) AS avg_duration FROM taxi`
+- **Why:** execution error: Catalog Error: Aggregate Function with name percentile_cont does not exist!
+Did you mean "pi"?
 
-### `group-003` — What is the average total amount by passenger count?
+LINE 1: SELECT * FROM (SELECT ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY fare_amount...
+                                    ^
+- **Expected:** `SELECT MEDIAN(fare_amount) AS median_fare FROM taxi`
+- **Generated:** `SELECT ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY fare_amount) OVER (), 2) AS median_fare FROM taxi`
 
-- **Why:** wrong result: expected 11 row(s) ['passenger_count', 'avg_total'], got 11 row(s) ['avg_amount']
-- **Expected:** `SELECT passenger_count, ROUND(AVG(total_amount), 2) AS avg_total FROM taxi GROUP BY passenger_count ORDER BY passenger_count`
-- **Generated:** `SELECT ROUND(AVG(total_amount), 2) AS avg_amount FROM taxi GROUP BY passenger_count`
+### `ratio-001` — What percentage of trips are paid by credit card?
 
-### `group-004` — How many trips per rate code?
-
-- **Why:** wrong result: expected 8 row(s) ['RatecodeID', 'trips'], got 8 row(s) ['RatecodeID', 'trips']
-- **Expected:** `SELECT RatecodeID, COUNT(*) AS trips FROM taxi GROUP BY RatecodeID ORDER BY RatecodeID`
-- **Generated:** `SELECT RatecodeID, COUNT(*) AS trips FROM taxi GROUP BY RatecodeID`
+- **Why:** wrong result: expected 1 row(s), got 1 row(s)
+- **Expected:** `SELECT ROUND(100.0 * SUM(CASE WHEN payment_type = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS pct_credit_card FROM taxi`
+- **Generated:** `SELECT ROUND(100.0 * COUNT(*) / COUNT(DISTINCT trip_distance), 2) AS pct_credit_card FROM taxi WHERE payment_type = 1`
 
 ### `ratio-002` — What is the average tip as a percentage of the fare?
 
-- **Why:** wrong result: expected 1 row(s) ['tip_pct'], got 1 row(s) ['tip_pct']
+- **Why:** wrong result: expected 1 row(s), got 1 row(s)
 - **Expected:** `SELECT ROUND(100.0 * SUM(tip_amount) / SUM(fare_amount), 2) AS tip_pct FROM taxi WHERE fare_amount > 0`
-- **Generated:** `SELECT ROUND(100.0 * SUM(tip_amount) / SUM(fare_amount), 2) AS tip_pct FROM taxi`
+- **Generated:** `SELECT ROUND(100.0 * AVG(tip_amount) / AVG(fare_amount), 2) AS tip_pct FROM taxi`
 
 ### `multi-001` — For credit card trips, what is the average tip by passenger count?
 
-- **Why:** execution error: Binder Error: column "passenger_count" must appear in the GROUP BY clause or must be part of an aggregate function.
-Either add it to the GROUP BY list, or use "ANY_VALUE(passenger_count)" if the exact value of "passenger_count" is not important.
-
-LINE 1: ...(AVG(CASE WHEN payment_type = 1 THEN tip_amount ELSE 0 END) / passenger_count, 2) AS avg_tip_per_passenger FROM taxi WHERE...
-                                                                         ^
+- **Why:** wrong result: expected 10 row(s), got 10 row(s)
 - **Expected:** `SELECT passenger_count, ROUND(AVG(tip_amount), 2) AS avg_tip FROM taxi WHERE payment_type = 1 GROUP BY passenger_count ORDER BY passenger_count`
-- **Generated:** `SELECT ROUND(AVG(CASE WHEN payment_type = 1 THEN tip_amount ELSE 0 END) / passenger_count, 2) AS avg_tip_per_passenger FROM taxi WHERE payment_type = 1`
+- **Generated:** `SELECT ROUND(AVG(tip_amount) / passenger_count, 2) AS avg_tip_per_passenger FROM taxi WHERE payment_type = 1 GROUP BY passenger_count`
 
 ### `multi-002` — What is the average fare per mile?
 
-- **Why:** wrong result: expected 1 row(s) ['fare_per_mile'], got 1 row(s) ['avg_fare_per_mile']
+- **Why:** wrong result: expected 1 row(s), got 1 row(s)
 - **Expected:** `SELECT ROUND(SUM(fare_amount) / SUM(trip_distance), 2) AS fare_per_mile FROM taxi WHERE trip_distance > 0`
 - **Generated:** `SELECT ROUND(AVG(fare_amount / trip_distance), 2) AS avg_fare_per_mile FROM taxi WHERE trip_distance > 0`
 
@@ -93,8 +88,8 @@ LINE 1: SELECT * FROM (SELECT EXTRACT(MONTH FROM tpep_pickup_datetime) AS month,
 - **Why:** execution error: Binder Error: column "tpep_pickup_datetime" must appear in the GROUP BY clause or must be part of an aggregate function.
 Either add it to the GROUP BY list, or use "ANY_VALUE(tpep_pickup_datetime)" if the exact value of "tpep_pickup_datetime" is not important.
 
-LINE 1: ...* FROM (SELECT ROUND(AVG(trip_distance) / (date_diff('minute', tpep_pickup_datetime, tpep_dropoff_datetime) * 1.0 / 60...
+LINE 1: ...* FROM (SELECT ROUND(AVG(trip_distance) / (date_diff('minute', tpep_pickup_datetime, tpep_dropoff_datetime) / 60.0), 2...
                                                                           ^
 - **Expected:** `SELECT ROUND(AVG(trip_distance / (date_diff('second', tpep_pickup_datetime, tpep_dropoff_datetime) / 3600.0)), 2) AS avg_mph FROM taxi WHERE date_diff('second', tpep_pickup_datetime, tpep_dropoff_datetime) > 0 AND trip_distance > 0`
-- **Generated:** `SELECT ROUND(AVG(trip_distance) / (date_diff('minute', tpep_pickup_datetime, tpep_dropoff_datetime) * 1.0 / 60.0), 2) AS avg_speed FROM taxi`
+- **Generated:** `SELECT ROUND(AVG(trip_distance) / (date_diff('minute', tpep_pickup_datetime, tpep_dropoff_datetime) / 60.0), 2) AS avg_speed FROM taxi`
 

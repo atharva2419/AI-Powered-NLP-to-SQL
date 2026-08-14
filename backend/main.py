@@ -27,8 +27,8 @@ log = logging.getLogger("nlsql.api")
 EXAMPLES = [
     "How many trips were taken in total?",
     "What hour of the day has the most pickups?",
-    "What is the average fare amount?",
-    "Which month had the most trips?",
+    "What is the average fare from JFK Airport?",
+    "How many trips started in each borough?",
     "What percentage of trips are paid by credit card?",
     "What is the average trip distance by payment type?",
 ]

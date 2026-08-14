@@ -54,6 +54,31 @@ def _harden(con: duckdb.DuckDBPyConnection) -> None:
             log.warning("could not apply %r: %s", setting, exc)
 
 
+def zones_table_sql(zones_path) -> str:
+    """DDL for the TLC zone lookup: 265 rows of LocationID -> borough, zone."""
+    return f'CREATE TABLE zones AS SELECT * FROM read_csv(\'{zones_path.as_posix()}\')'
+
+
+def taxi_view_sql(data_path) -> str:
+    """DDL for the `taxi` view. Separate from :func:`_init_db` so tests can run
+    it against a throwaway dataset instead of the real 700 MB of Parquet."""
+    return f"""
+        CREATE VIEW taxi AS
+        SELECT t.*,
+               pu."Borough" AS pickup_borough,
+               pu."Zone"    AS pickup_zone,
+               dz."Borough" AS dropoff_borough,
+               dz."Zone"    AS dropoff_zone
+        FROM (
+            SELECT * FROM read_parquet('{data_path.as_posix()}')
+            WHERE tpep_pickup_datetime >= '2024-01-01'
+              AND tpep_pickup_datetime <  '2025-01-01'
+        ) t
+        LEFT JOIN zones pu ON t."PULocationID" = pu."LocationID"
+        LEFT JOIN zones dz ON t."DOLocationID" = dz."LocationID"
+    """
+
+
 def _init_db() -> str:
     """Register the `taxi` view and return its schema as a prompt fragment.
 
@@ -62,12 +87,20 @@ def _init_db() -> str:
     the process boots in under a second and aggregates still return in
     sub-second time. The date predicate drops records whose timestamps fall
     outside 2024 — the raw TLC files contain a handful of corrupt rows.
+
+    Zone names are denormalised into the view rather than left to the model to
+    join. Measured on the full dataset, carrying the two joins costs ~200ms on
+    queries that never reference a zone (116ms -> 313ms for COUNT(*)), because
+    DuckDB must read both location-ID columns to satisfy the join and cannot
+    eliminate it. That is 3-10% of a response dominated by two LLM round
+    trips, and it buys away the thing an 8B model fails at most often: writing
+    a correct multi-table join. Cheap compute for scarce accuracy.
+
+    LEFT, not INNER: ~4M rows carry location IDs with no lookup entry, and an
+    inner join would silently drop them from every single query.
     """
-    _con.execute(
-        f"CREATE VIEW taxi AS SELECT * FROM read_parquet('{config.DATA_PATH.as_posix()}') "
-        "WHERE tpep_pickup_datetime >= '2024-01-01' "
-        "AND tpep_pickup_datetime < '2025-01-01'"
-    )
+    _con.execute(zones_table_sql(config.ZONES_PATH))
+    _con.execute(taxi_view_sql(config.DATA_PATH))
     # Harden only after the view exists: creating it is a privileged operation
     # that the locked-down configuration would otherwise have to allow.
     _harden(_con)
@@ -99,7 +132,9 @@ Domain rules:
 - payment_type is an integer code: 1=credit card, 2=cash, 3=no charge, 4=dispute, 5=unknown, 6=voided trip. Code 0 is undocumented and covers ~10% of 2024; those rows also have null RatecodeID and are outliers on distance, so keep them as their own group rather than merging them into another code.
 - VendorID: 1=Creative Mobile Technologies, 2=Curb Mobility, 6=Myle, 7=Helix.
 - RatecodeID: 1=standard rate, 2=JFK, 3=Newark, 4=Nassau/Westchester, 5=negotiated fare, 6=group ride, 99=unknown. It is null for ~10% of rows, so use a filter that tolerates nulls unless the question is about rate codes.
-- PULocationID/DOLocationID are TLC zone IDs, not names. There is no borough or zone-name column.
+- PULocationID/DOLocationID are numeric TLC zone IDs. The names are already joined into this table as pickup_zone, pickup_borough, dropoff_zone and dropoff_borough — use those for anything involving a place name, and never join to another table.
+- Borough values are exactly: 'Manhattan', 'Queens', 'Brooklyn', 'Bronx', 'Staten Island', 'EWR' (Newark), 'Unknown', 'N/A'.
+- Airports are zones, not boroughs: pickup_zone = 'JFK Airport', 'LaGuardia Airport', or 'Newark Airport'. Neighbourhood zones are specific, e.g. 'Midtown Center', 'Upper East Side South' — use LIKE for a general area (dropoff_zone LIKE 'Midtown%').
 - total_amount includes tips and surcharges; fare_amount does not.
 - Timestamps are tpep_pickup_datetime and tpep_dropoff_datetime. The data covers 2024 only.
 - Trip duration must be computed, e.g. date_diff('minute', tpep_pickup_datetime, tpep_dropoff_datetime).
@@ -158,6 +193,12 @@ _FEW_SHOT: list[tuple[str, str]] = [
         "How many trips started between 8pm and midnight?",
         "SELECT COUNT(*) AS trips FROM taxi "
         "WHERE HOUR(tpep_pickup_datetime) >= 20 AND HOUR(tpep_pickup_datetime) < 24",
+    ),
+    (
+        # Zone names come from the table itself — no join, and no LocationID.
+        "What is the average fare for trips picked up at LaGuardia?",
+        "SELECT ROUND(AVG(fare_amount), 2) AS avg_fare "
+        "FROM taxi WHERE pickup_zone = 'LaGuardia Airport'",
     ),
 ]
 

@@ -19,9 +19,17 @@ export const GLOSSARY: Record<string, string> = {
   store_and_fwd_flag:
     "Y if the record was held in vehicle memory before sending (no server connection), otherwise N.",
   PULocationID:
-    "TLC taxi zone where the meter was engaged (pickup zone).",
+    "Numeric TLC taxi zone where the meter was engaged. Ask using pickup_zone instead — it has the actual name.",
   DOLocationID:
-    "TLC taxi zone where the meter was disengaged (dropoff zone).",
+    "Numeric TLC taxi zone where the meter was disengaged. Ask using dropoff_zone instead — it has the actual name.",
+  pickup_borough:
+    "Borough the trip started in — Manhattan, Queens, Brooklyn, Bronx, Staten Island, or EWR (Newark).",
+  pickup_zone:
+    "Named neighbourhood the trip started in, e.g. 'JFK Airport', 'Midtown Center', 'Upper East Side South'.",
+  dropoff_borough:
+    "Borough the trip ended in. Combine with pickup_borough for questions like Manhattan to Brooklyn.",
+  dropoff_zone:
+    "Named neighbourhood the trip ended in. Use LIKE 'Midtown%' to cover a general area.",
   payment_type:
     "How the trip was paid — 1 = credit card, 2 = cash, 3 = no charge, 4 = dispute, 5 = unknown, 6 = voided. 0 is undocumented but covers 10% of 2024 (4.1M trips, averaging 18 miles vs ~3.5 elsewhere) — treat those separately.",
   fare_amount:

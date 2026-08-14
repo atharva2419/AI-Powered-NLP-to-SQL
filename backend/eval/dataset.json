@@ -20,7 +20,8 @@
       "question": "How many distinct pickup zones are there?",
       "category": "counting",
       "difficulty": "easy",
-      "reference_sql": "SELECT COUNT(DISTINCT PULocationID) AS zones FROM taxi"
+      "_note": "Counts named zones, not location IDs. Before the zone lookup was joined in, PULocationID was the only way to express this; now the question's plain reading is the named column, and two location IDs can share a zone name.",
+      "reference_sql": "SELECT COUNT(DISTINCT pickup_zone) AS zones FROM taxi"
     },
     {
       "id": "count-004",
@@ -252,6 +253,48 @@
       "category": "multi_step",
       "difficulty": "hard",
       "reference_sql": "SELECT ROUND(AVG(trip_distance / (date_diff('second', tpep_pickup_datetime, tpep_dropoff_datetime) / 3600.0)), 2) AS avg_mph FROM taxi WHERE date_diff('second', tpep_pickup_datetime, tpep_dropoff_datetime) > 0 AND trip_distance > 0"
+    },
+    {
+      "id": "zone-001",
+      "question": "How many trips started in each borough?",
+      "category": "zones",
+      "difficulty": "easy",
+      "reference_sql": "SELECT pickup_borough, COUNT(*) AS trips FROM taxi GROUP BY pickup_borough ORDER BY pickup_borough"
+    },
+    {
+      "id": "zone-002",
+      "question": "What are the top 5 pickup zones by number of trips?",
+      "category": "zones",
+      "difficulty": "easy",
+      "reference_sql": "SELECT pickup_zone, COUNT(*) AS trips FROM taxi GROUP BY pickup_zone ORDER BY trips DESC LIMIT 5"
+    },
+    {
+      "id": "zone-003",
+      "question": "What is the average fare for trips picked up at JFK Airport?",
+      "category": "zones",
+      "difficulty": "medium",
+      "reference_sql": "SELECT ROUND(AVG(fare_amount), 2) AS avg_fare FROM taxi WHERE pickup_zone = 'JFK Airport'"
+    },
+    {
+      "id": "zone-004",
+      "question": "How many trips went from Manhattan to Brooklyn?",
+      "category": "zones",
+      "difficulty": "medium",
+      "reference_sql": "SELECT COUNT(*) AS trips FROM taxi WHERE pickup_borough = 'Manhattan' AND dropoff_borough = 'Brooklyn'"
+    },
+    {
+      "id": "zone-005",
+      "question": "Which borough has the highest average total amount?",
+      "category": "zones",
+      "difficulty": "medium",
+      "reference_sql": "SELECT pickup_borough, ROUND(AVG(total_amount), 2) AS avg_total FROM taxi GROUP BY pickup_borough ORDER BY avg_total DESC LIMIT 1"
+    },
+    {
+      "id": "zone-006",
+      "question": "What is the average trip distance from JFK Airport to Midtown?",
+      "category": "zones",
+      "difficulty": "hard",
+      "reference_sql": "SELECT ROUND(AVG(trip_distance), 2) AS avg_distance FROM taxi WHERE pickup_zone = 'JFK Airport' AND dropoff_zone LIKE 'Midtown%'"
     }
   ]
 }

@@ -185,6 +185,80 @@ class TestRunPipeline:
                 run_pipeline("delete all data")
 
 
+class TestZoneLookup:
+    """The TLC zone lookup joined into the view.
+
+    Without it, `PULocationID = 132` is the only way to talk about JFK, which
+    is unusable for anyone who has not memorised 265 zone IDs.
+    """
+
+    def test_zone_columns_exist_on_the_view(self):
+        result = run_query(
+            "SELECT pickup_borough, pickup_zone, dropoff_borough, dropoff_zone "
+            "FROM taxi LIMIT 1"
+        )
+        assert "error" not in result
+
+    def test_pickup_zone_resolves(self):
+        # Fixture row 1 has PULocationID = 1 -> Newark Airport, borough EWR.
+        result = run_query(
+            "SELECT pickup_borough, pickup_zone FROM taxi WHERE PULocationID = 1"
+        )
+        assert result["rows"][0] == ["EWR", "Newark Airport"]
+
+    def test_dropoff_zone_resolves_independently_of_pickup(self):
+        # Same row: DOLocationID = 2 -> Jamaica Bay, Queens.
+        result = run_query(
+            "SELECT dropoff_borough, dropoff_zone FROM taxi WHERE PULocationID = 1"
+        )
+        assert result["rows"][0] == ["Queens", "Jamaica Bay"]
+
+    def test_can_group_by_borough(self):
+        result = run_query(
+            "SELECT pickup_borough, COUNT(*) AS trips FROM taxi "
+            "GROUP BY pickup_borough ORDER BY pickup_borough"
+        )
+        boroughs = {row[0] for row in result["rows"]}
+        assert {"EWR", "Bronx", "Staten Island", "Queens"} <= boroughs
+
+    def test_zone_join_does_not_duplicate_rows(self):
+        """A join against a 265-row lookup must not fan out the fact table."""
+        assert run_query("SELECT COUNT(*) AS n FROM taxi")["rows"][0][0] == 5
+
+    def test_unmatched_location_ids_are_kept(self):
+        """LEFT, not INNER — ~4M real rows carry IDs with no lookup entry.
+
+        An inner join would drop them from every query in the app, silently
+        changing the answer to "how many trips were there?".
+        """
+        import tempfile
+        from pathlib import Path
+
+        import duckdb
+
+        from data.fixture import build_fixture
+
+        tmp = Path(tempfile.mkdtemp())
+        fixture = build_fixture(tmp / "taxi.parquet")
+
+        con = duckdb.connect()
+        con.execute(query_engine.zones_table_sql(config.ZONES_PATH))
+        # Rewrite one row's pickup location to an ID that is not in the lookup.
+        orphaned = tmp / "orphaned.parquet"
+        con.execute(
+            f"COPY (SELECT * REPLACE (99999 AS PULocationID) FROM "
+            f"read_parquet('{fixture.as_posix()}')) "
+            f"TO '{orphaned.as_posix()}' (FORMAT PARQUET)"
+        )
+        con.execute(query_engine.taxi_view_sql(orphaned))
+
+        rows = con.execute(
+            "SELECT COUNT(*), COUNT(pickup_zone) FROM taxi"
+        ).fetchone()
+        assert rows[0] == 5   # every row survives
+        assert rows[1] == 0   # but their zone is null, not fabricated
+
+
 class TestSelfCorrection:
     def test_retries_with_the_database_error_and_recovers(self):
         attempts = ["SELECT nonexistent_col FROM taxi", "SELECT COUNT(*) AS cnt FROM taxi"]

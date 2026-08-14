@@ -1,7 +1,8 @@
 import { GLOSSARY } from '@/lib/glossary'
 
-// Must stay in sync with the 19 columns of the NYC TLC Yellow Taxi schema
-// (see backend/tests/conftest.py for the canonical column list).
+// Must stay in sync with what GET /api/schema returns: the 19 raw NYC TLC
+// Yellow Taxi columns (see backend/data/fixture.py) plus the 4 zone columns
+// the backend joins in from the TLC zone lookup (see query_engine.taxi_view_sql).
 const TAXI_COLUMNS = [
   'VendorID',
   'tpep_pickup_datetime',
@@ -22,6 +23,11 @@ const TAXI_COLUMNS = [
   'total_amount',
   'congestion_surcharge',
   'Airport_fee',
+  // Denormalised from the TLC zone lookup so the model never writes a join.
+  'pickup_borough',
+  'pickup_zone',
+  'dropoff_borough',
+  'dropoff_zone',
 ]
 
 describe('GLOSSARY', () => {
@@ -47,5 +53,15 @@ describe('GLOSSARY', () => {
   it('explains the payment_type codes', () => {
     expect(GLOSSARY.payment_type).toMatch(/credit card/)
     expect(GLOSSARY.payment_type).toMatch(/cash/)
+  })
+
+  it('points people from the opaque location IDs to the named zone columns', () => {
+    expect(GLOSSARY.PULocationID).toMatch(/pickup_zone/)
+    expect(GLOSSARY.DOLocationID).toMatch(/dropoff_zone/)
+  })
+
+  it('names the boroughs so people know what values to ask for', () => {
+    expect(GLOSSARY.pickup_borough).toMatch(/Manhattan/)
+    expect(GLOSSARY.pickup_borough).toMatch(/Queens/)
   })
 })

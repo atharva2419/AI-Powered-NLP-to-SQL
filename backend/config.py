@@ -41,6 +41,12 @@ DATA_PATH = Path(
 HISTORY_DB_PATH = Path(
     os.getenv("HISTORY_DB_PATH", str(_BACKEND_DIR / "data" / "history.db"))
 )
+# The official TLC zone lookup: 265 rows mapping LocationID -> borough and
+# zone name. Committed to the repo rather than downloaded — it is 12 KB and
+# changes about once a decade, so a network dependency at boot buys nothing.
+ZONES_PATH = Path(
+    os.getenv("TAXI_ZONES_PATH", str(_BACKEND_DIR / "data" / "taxi_zone_lookup.csv"))
+)
 
 # --- LLM --------------------------------------------------------------------
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
