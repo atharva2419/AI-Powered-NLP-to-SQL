@@ -15,7 +15,7 @@ import config
 import history
 import metrics
 import ratelimit
-from query_engine import _SCHEMA, _con, run_pipeline
+from query_engine import _SCHEMA, ROW_COUNT, _con, run_pipeline
 from sql_guard import SQLGuardError
 
 logging.basicConfig(
@@ -57,6 +57,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.CORS_ORIGINS,
+    allow_origin_regex=config.CORS_ORIGIN_REGEX,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -179,7 +180,13 @@ async def get_schema():
         "WHERE table_name = 'taxi' "
         "ORDER BY ordinal_position"
     ).fetchall()
-    return {"columns": [{"name": col, "type": dtype} for col, dtype in rows]}
+    # row_count rides along with the schema rather than getting its own
+    # endpoint: the frontend already fetches this on load, and the dataset
+    # size is part of describing what you can ask about.
+    return {
+        "columns": [{"name": col, "type": dtype} for col, dtype in rows],
+        "row_count": ROW_COUNT,
+    }
 
 
 @app.get("/api/history")

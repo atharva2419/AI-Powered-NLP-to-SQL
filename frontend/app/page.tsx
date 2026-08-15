@@ -22,6 +22,22 @@ SyntaxHighlighter.registerLanguage('sql', sql);
 const FRIENDLY_ERROR =
   "I couldn't generate a valid query for that. Try rephrasing — for example, 'What is the average fare?'";
 
+// The full 2024 dataset is ~41M rows. A hosted free-tier instance loads a
+// sample instead, so anything well under the full year is labelled as such —
+// claiming 41M rows on a demo backed by 1M would be a lie the reader cannot
+// check.
+const FULL_YEAR_ROWS = 30_000_000;
+
+function isSampled(rowCount: number): boolean {
+  return rowCount > 0 && rowCount < FULL_YEAR_ROWS;
+}
+
+function formatRowCount(rowCount: number): string {
+  if (rowCount >= 1_000_000) return `${(rowCount / 1_000_000).toFixed(1)}M`;
+  if (rowCount >= 1_000) return `${Math.round(rowCount / 1_000)}k`;
+  return String(rowCount);
+}
+
 function timeAgo(isoString: string): string {
   const diff = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
   if (diff < 60) return 'just now';
@@ -34,6 +50,7 @@ export default function Home() {
   const [question, setQuestion] = useState('');
   const [examples, setExamples] = useState<string[]>([]);
   const [schema, setSchema] = useState<SchemaColumn[]>([]);
+  const [rowCount, setRowCount] = useState(0);
   const [schemaOpen, setSchemaOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<QueryResponse | null>(null);
@@ -43,7 +60,12 @@ export default function Home() {
 
   useEffect(() => {
     fetchExamples().then(setExamples).catch(() => {});
-    fetchSchema().then(setSchema).catch(() => {});
+    fetchSchema()
+      .then((s) => {
+        setSchema(s.columns);
+        setRowCount(s.rowCount);
+      })
+      .catch(() => {});
     fetchHistory().then(setHistory).catch(() => {});
   }, []);
 
@@ -105,7 +127,16 @@ export default function Home() {
               NYC Taxi Explorer
             </h1>
             <p className="mt-0.5 text-sm text-zinc-500">
-              Ask questions about 40M+ taxi trips from 2024 in plain English.
+              Ask questions about {rowCount > 0 ? formatRowCount(rowCount) : '40M+'} taxi
+              trips from 2024 in plain English.
+              {isSampled(rowCount) && (
+                <span
+                  title="The hosted demo loads a month-stratified sample so it fits a free-tier host. Run it locally for the full year."
+                  className="ml-1.5 rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-600"
+                >
+                  sample
+                </span>
+              )}
             </p>
           </div>
         </div>

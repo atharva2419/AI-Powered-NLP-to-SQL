@@ -38,7 +38,7 @@ const BASE: api.QueryResponse = {
 
 beforeEach(() => {
   mockFetchExamples.mockResolvedValue([])
-  mockFetchSchema.mockResolvedValue([])
+  mockFetchSchema.mockResolvedValue({ columns: [], rowCount: 41_000_000 })
   mockFetchHistory.mockResolvedValue([])
   mockRunQuery.mockReset()
 })
@@ -100,6 +100,39 @@ describe('truncation notice', () => {
   it('is absent when the whole result fits', async () => {
     await ask(BASE)
     expect(screen.queryByText(/result capped/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('dataset size', () => {
+  async function renderWithRows(rowCount: number) {
+    mockFetchSchema.mockResolvedValue({ columns: [], rowCount })
+    render(<Home />)
+    await waitFor(() => expect(mockFetchSchema).toHaveBeenCalled())
+  }
+
+  it('states the real dataset size rather than a hardcoded number', async () => {
+    await renderWithRows(1_000_000)
+    await waitFor(() => expect(screen.getByText(/1\.0M/)).toBeInTheDocument())
+  })
+
+  it('flags a sampled dataset', async () => {
+    // The hosted demo runs ~1M rows. Claiming 41M there would be a lie the
+    // reader has no way to check.
+    await renderWithRows(1_000_000)
+    await waitFor(() => expect(screen.getByText('sample')).toBeInTheDocument())
+  })
+
+  it('does not flag the full dataset', async () => {
+    await renderWithRows(41_000_000)
+    await waitFor(() => expect(screen.getByText(/41\.0M/)).toBeInTheDocument())
+    expect(screen.queryByText('sample')).not.toBeInTheDocument()
+  })
+
+  it('falls back gracefully when the backend is unreachable', async () => {
+    mockFetchSchema.mockRejectedValue(new Error('offline'))
+    render(<Home />)
+    await waitFor(() => expect(screen.getByText(/40M\+/)).toBeInTheDocument())
+    expect(screen.queryByText('sample')).not.toBeInTheDocument()
   })
 })
 

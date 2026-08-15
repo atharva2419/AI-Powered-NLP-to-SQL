@@ -37,5 +37,10 @@ services:
         value: "20"
       - key: SAMPLE_ROWS
         value: "1000000"
+      # Set CORS_ORIGINS in the dashboard to your Vercel production URL.
+      # The regex additionally allows Vercel preview deployments, which get a
+      # fresh hostname per branch and would otherwise all fail CORS.
       - key: CORS_ORIGINS
-        value: "https://nyc-taxi-nlsql.vercel.app,http://localhost:3000"
+        sync: false
+      - key: CORS_ORIGIN_REGEX
+        value: "https://.*\\.vercel\\.app"

@@ -117,6 +117,25 @@ def _init_db() -> str:
 _SCHEMA: str = _init_db()
 
 
+def _count_rows() -> int:
+    """Row count, measured once at startup.
+
+    The deployed demo runs on a sample, not the full year, so the UI has to be
+    told how much data is actually behind it rather than hardcoding a number
+    that is only true on a developer's laptop. Counting is cheap — DuckDB
+    reads it from Parquet metadata — but not free, so it is not done per
+    request.
+    """
+    try:
+        return int(_con.execute("SELECT COUNT(*) FROM taxi").fetchone()[0])
+    except duckdb.Error as exc:  # pragma: no cover - startup already failed
+        log.warning("could not count rows: %s", exc)
+        return 0
+
+
+ROW_COUNT: int = _count_rows()
+
+
 # ---------------------------------------------------------------------------
 # Prompting
 # ---------------------------------------------------------------------------

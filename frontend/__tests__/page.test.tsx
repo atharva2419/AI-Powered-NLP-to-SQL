@@ -31,7 +31,8 @@ const mockRunQuery      = api.runQuery      as jest.MockedFunction<typeof api.ru
 const mockFetchHistory  = api.fetchHistory  as jest.MockedFunction<typeof api.fetchHistory>
 
 const EXAMPLES = ['How many trips?', 'What is the average fare?']
-const SCHEMA   = [{ name: 'fare_amount', type: 'DOUBLE' }, { name: 'VendorID', type: 'INTEGER' }]
+const SCHEMA_COLUMNS = [{ name: 'fare_amount', type: 'DOUBLE' }, { name: 'VendorID', type: 'INTEGER' }]
+const SCHEMA   = { columns: SCHEMA_COLUMNS, rowCount: 41_000_000 }
 const SUCCESS_RESULT: api.QueryResponse = {
   sql: 'SELECT COUNT(*) FROM taxi',
   result: { columns: ['count_star()'], rows: [[5]], row_count: 1 },

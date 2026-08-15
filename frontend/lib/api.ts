@@ -45,11 +45,20 @@ export async function fetchExamples(): Promise<string[]> {
   return data.examples as string[];
 }
 
-export async function fetchSchema(): Promise<SchemaColumn[]> {
+export interface Schema {
+  columns: SchemaColumn[];
+  /** rows actually loaded — the hosted demo runs a sample, not the full year */
+  rowCount: number;
+}
+
+export async function fetchSchema(): Promise<Schema> {
   const res = await fetch(`${BASE}/api/schema`);
   if (!res.ok) throw new Error("Failed to fetch schema");
   const data = await res.json();
-  return data.columns as SchemaColumn[];
+  return {
+    columns: data.columns as SchemaColumn[],
+    rowCount: (data.row_count as number) ?? 0,
+  };
 }
 
 export async function runQuery(question: string): Promise<QueryResponse> {

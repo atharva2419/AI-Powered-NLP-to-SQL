@@ -39,11 +39,16 @@ describe('fetchExamples', () => {
 // fetchSchema
 // ---------------------------------------------------------------------------
 describe('fetchSchema', () => {
-  it('returns the columns array', async () => {
+  it('returns the columns and the dataset size', async () => {
     const cols = [{ name: 'VendorID', type: 'INTEGER' }]
-    mockFetch.mockReturnValueOnce(mockOk({ columns: cols }))
+    mockFetch.mockReturnValueOnce(mockOk({ columns: cols, row_count: 41_000_000 }))
     const result = await fetchSchema()
-    expect(result).toEqual(cols)
+    expect(result).toEqual({ columns: cols, rowCount: 41_000_000 })
+  })
+
+  it('defaults the row count when an older backend omits it', async () => {
+    mockFetch.mockReturnValueOnce(mockOk({ columns: [] }))
+    expect((await fetchSchema()).rowCount).toBe(0)
   })
 
   it('throws on non-ok response', async () => {

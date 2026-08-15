@@ -82,4 +82,9 @@ CORS_ORIGINS = [
     for o in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
     if o.strip()
 ]
+# Vercel gives every preview deployment its own hostname, so an exact-match
+# origin list breaks any branch that is not production. A regex lets previews
+# work without turning CORS off entirely.
+# Example: https://.*\.vercel\.app
+CORS_ORIGIN_REGEX = os.getenv("CORS_ORIGIN_REGEX") or None
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
