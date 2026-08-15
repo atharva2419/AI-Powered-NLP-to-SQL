@@ -32,12 +32,40 @@ def _bool(name: str, default: bool) -> bool:
 
 
 # --- Data -------------------------------------------------------------------
-DATA_PATH = Path(
-    os.getenv(
-        "TAXI_DATA_PATH",
-        str(_BACKEND_DIR / "data" / "yellow_tripdata_2024-*.parquet"),
+_DATA_DIR = _BACKEND_DIR / "data"
+# Where data/bootstrap.py deposits a downloaded or generated sample. It is
+# deliberately NOT named to match the monthly glob below: a developer who runs
+# the container (creating a sample) and later downloads the full year would
+# otherwise end up with 13 files matching one pattern, double-counting.
+SAMPLE_FILENAME = "taxi_sample.parquet"
+
+
+def _resolve_data_path() -> Path:
+    """Pick the dataset to query.
+
+    The configured pattern wins whenever it matches something. When it matches
+    nothing but a bootstrap sample is sitting there, use the sample — this is
+    the hosted case, where bootstrap downloads one file and the default
+    pattern is a 12-month glob that will never match it. Without this the two
+    halves disagree about where the data lives and the app dies at import.
+    """
+    configured = Path(
+        os.getenv("TAXI_DATA_PATH", str(_DATA_DIR / "yellow_tripdata_2024-*.parquet"))
     )
-)
+    if list(configured.parent.glob(configured.name)):
+        return configured
+
+    sample = configured.parent / SAMPLE_FILENAME
+    if sample.exists():
+        print(f"config: no match for {configured.name}, using {SAMPLE_FILENAME}")
+        return sample
+
+    # Neither exists. Return the configured path so DuckDB raises its own
+    # error naming the pattern, which is clearer than anything invented here.
+    return configured
+
+
+DATA_PATH = _resolve_data_path()
 HISTORY_DB_PATH = Path(
     os.getenv("HISTORY_DB_PATH", str(_BACKEND_DIR / "data" / "history.db"))
 )

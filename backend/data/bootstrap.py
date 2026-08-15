@@ -18,6 +18,9 @@ import sys
 import urllib.request
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import SAMPLE_FILENAME  # noqa: E402  — single source of truth for the filename
+
 DATA_DIR = Path(__file__).parent
 TLC_BASE = "https://d37ci6vzurychx.cloudfront.net/trip-data"
 FALLBACK_MONTH = "2024-01"
@@ -51,7 +54,18 @@ def ensure_data() -> Path:
     sample_url = os.getenv("SAMPLE_DATA_URL")
     target = Path(pattern)
     if "*" in target.name:
-        target = DATA_DIR / "taxi_sample.parquet"
+        # The configured path is a glob, so it cannot name a download target.
+        # Fall back to the shared sample filename — config._resolve_data_path
+        # looks for exactly this when its own pattern matches nothing, which
+        # is what keeps the two processes pointing at the same file.
+        target = DATA_DIR / SAMPLE_FILENAME
+
+    # The glob above cannot match the sample filename, so a previously
+    # downloaded sample has to be checked for separately. Without this, every
+    # restart re-downloads a file that is already sitting on disk.
+    if target.exists():
+        print(f"data ready: {target.name} ({target.stat().st_size / (1024 * 1024):.1f} MB)")
+        return target
 
     if sample_url:
         _download(sample_url, target)
