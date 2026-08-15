@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 import config
@@ -116,6 +117,95 @@ class TestCaching:
              patch("main.history.save_query", side_effect=Exception("disk full")):
             resp = client.post("/api/query", json={"question": "How many trips?"})
         assert resp.status_code == 200
+
+
+class TestExecuteEndpoint:
+    """The SQL editor's backend: run SQL the user wrote themselves."""
+
+    def test_runs_valid_sql(self):
+        resp = client.post("/api/execute", json={"sql": "SELECT COUNT(*) AS n FROM taxi"})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["result"]["rows"] == [[5]]
+        assert body["result"]["columns"] == ["n"]
+        assert isinstance(body["latency_ms"], int)
+
+    def test_makes_no_llm_call(self):
+        """Editing SQL is free — that is the point of a separate endpoint."""
+        with patch("main.run_pipeline") as pipeline:
+            client.post("/api/execute", json={"sql": "SELECT 1 AS a FROM taxi"})
+        pipeline.assert_not_called()
+
+    def test_returns_the_normalized_sql(self):
+        resp = client.post("/api/execute", json={"sql": "  SELECT 1 AS a FROM taxi;  "})
+        assert resp.json()["sql"] == "SELECT 1 AS a FROM taxi"
+
+    def test_reports_a_sql_error_for_the_user_to_fix(self):
+        resp = client.post("/api/execute", json={"sql": "SELECT nope FROM taxi"})
+        assert resp.status_code == 400
+        assert "nope" in resp.json()["error"]
+
+    def test_reports_a_syntax_error(self):
+        resp = client.post("/api/execute", json={"sql": "SELEKT * FROM taxi"})
+        assert resp.status_code == 400
+        assert "error" in resp.json()
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "DROP TABLE taxi",
+            "DELETE FROM taxi",
+            "UPDATE taxi SET fare_amount = 0",
+            "COPY (SELECT 1) TO '/tmp/leak.csv'",
+            "ATTACH '/tmp/other.db' AS other",
+            "SELECT 1; DROP TABLE taxi",
+            "SELECT * FROM read_csv('/etc/passwd')",
+            "PRAGMA database_list",
+        ],
+    )
+    def test_the_guard_applies_to_hand_written_sql_too(self, sql: str):
+        """The guard was never LLM-specific.
+
+        A text box that runs SQL against the database is a far more direct
+        attack surface than a model that has to be talked into it.
+        """
+        resp = client.post("/api/execute", json={"sql": sql})
+        assert resp.status_code == 400
+        assert "error" in resp.json()
+
+    def test_row_cap_still_applies(self):
+        with patch.object(config, "MAX_RESULT_ROWS", 2):
+            resp = client.post("/api/execute", json={"sql": "SELECT * FROM taxi"})
+        body = resp.json()
+        assert body["result"]["row_count"] == 2
+        assert body["result"]["truncated"] is True
+
+    def test_empty_sql_is_rejected(self):
+        assert client.post("/api/execute", json={"sql": ""}).status_code == 400
+
+    def test_absurdly_long_sql_is_rejected(self):
+        assert client.post("/api/execute", json={"sql": "SELECT 1 " + "x" * 5000}).status_code == 400
+
+    def test_uses_its_own_rate_limit_allowance(self):
+        """Running edited SQL must not consume the LLM question budget."""
+        with patch.object(config, "RATE_LIMIT_ENABLED", True), \
+             patch.object(config, "RATE_LIMIT_PER_HOUR", 1), \
+             patch.object(config, "EXECUTE_RATE_LIMIT_PER_HOUR", 50), \
+             patch("main.run_pipeline", return_value=MOCK_PIPELINE):
+            for _ in range(5):
+                assert client.post(
+                    "/api/execute", json={"sql": "SELECT 1 AS a FROM taxi"}
+                ).status_code == 200
+            # The single LLM question is still available.
+            assert client.post("/api/query", json={"question": "fresh"}).status_code == 200
+
+    def test_execute_is_throttled_on_its_own_ceiling(self):
+        with patch.object(config, "RATE_LIMIT_ENABLED", True), \
+             patch.object(config, "EXECUTE_RATE_LIMIT_PER_HOUR", 2):
+            client.post("/api/execute", json={"sql": "SELECT 1 AS a FROM taxi"})
+            client.post("/api/execute", json={"sql": "SELECT 1 AS a FROM taxi"})
+            resp = client.post("/api/execute", json={"sql": "SELECT 1 AS a FROM taxi"})
+        assert resp.status_code == 429
 
 
 class TestRateLimiting:

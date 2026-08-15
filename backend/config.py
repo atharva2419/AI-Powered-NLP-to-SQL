@@ -103,6 +103,10 @@ CACHE_TTL_SECONDS = _int("CACHE_TTL_SECONDS", 24 * 60 * 60)
 RATE_LIMIT_ENABLED = _bool("RATE_LIMIT_ENABLED", False)
 RATE_LIMIT_PER_HOUR = _int("RATE_LIMIT_PER_HOUR", 20)
 RATE_LIMIT_GLOBAL_PER_DAY = _int("RATE_LIMIT_GLOBAL_PER_DAY", 1000)
+# Re-running hand-edited SQL costs local CPU, not API credit, so the SQL
+# editor gets its own much looser allowance. Someone learning SQL will run a
+# dozen variations in a minute, and that should not consume the LLM budget.
+EXECUTE_RATE_LIMIT_PER_HOUR = _int("EXECUTE_RATE_LIMIT_PER_HOUR", 200)
 
 # --- HTTP -------------------------------------------------------------------
 CORS_ORIGINS = [

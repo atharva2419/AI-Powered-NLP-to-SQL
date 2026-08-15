@@ -1,23 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
-import sql from 'react-syntax-highlighter/dist/esm/languages/hljs/sql';
-import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import {
   fetchExamples,
   fetchSchema,
   fetchHistory,
   runQuery,
+  executeSql,
   type HistoryItem,
   type QueryResponse,
   type SchemaColumn,
 } from '@/lib/api';
 import ResultChart from '@/components/ResultChart';
+import SqlEditor from '@/components/SqlEditor';
 import { GLOSSARY } from '@/lib/glossary';
 import { decodeValue, formatColumnName, formatValue } from '@/lib/format';
-
-SyntaxHighlighter.registerLanguage('sql', sql);
 
 const FRIENDLY_ERROR =
   "I couldn't generate a valid query for that. Try rephrasing — for example, 'What is the average fare?'";
@@ -55,8 +52,11 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<QueryResponse | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  // SQL editor: results can come from hand-edited SQL rather than the model's.
+  const [running, setRunning] = useState(false);
+  const [sqlEdited, setSqlEdited] = useState(false);
+  const [sqlError, setSqlError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchExamples().then(setExamples).catch(() => {});
@@ -77,6 +77,8 @@ export default function Home() {
     try {
       const data = await runQuery(q.trim());
       setResult(data);
+      setSqlEdited(false);
+      setSqlError(null);
       if (!data.error && !data.result?.error) {
         fetchHistory().then(setHistory).catch(() => {});
       }
@@ -92,15 +94,33 @@ export default function Home() {
     submit(ex);
   };
 
-  const handleCopy = () => {
-    if (!result?.sql) return;
-    navigator.clipboard.writeText(result.sql);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleRunSql = async (edited: string) => {
+    setRunning(true);
+    setSqlError(null);
+    try {
+      const data = await executeSql(edited);
+      if (data.error) {
+        setSqlError(data.error);
+        return;
+      }
+      // Keep the question and swap in the new SQL and rows. The explanation is
+      // dropped rather than kept: it described the model's query, and leaving
+      // it under different numbers would be actively misleading.
+      setResult((prev) =>
+        prev ? { ...prev, sql: data.sql, result: data.result, latency_ms: data.latency_ms } : prev
+      );
+      setSqlEdited(true);
+    } catch {
+      setSqlError('Could not reach the server.');
+    } finally {
+      setRunning(false);
+    }
   };
 
   const handleHistoryClick = (item: HistoryItem) => {
     setQuestion(item.question);
+    setSqlEdited(false);
+    setSqlError(null);
     setResult({
       sql: item.sql,
       result: item.result,
@@ -248,37 +268,18 @@ export default function Home() {
 
             {!apiError && (
               <>
-                {/* SQL block */}
-                <div className="overflow-hidden rounded-lg border border-zinc-200 shadow-sm">
-                  <div className="flex items-center justify-between border-b border-zinc-700 bg-[#282c34] px-4 py-2">
-                    <span className="text-xs font-semibold tracking-widest text-zinc-400 uppercase">
-                      SQL
-                    </span>
-                    <button
-                      onClick={handleCopy}
-                      className="text-xs text-zinc-400 hover:text-zinc-100 transition-colors"
-                    >
-                      {copied ? '✓ Copied' : 'Copy'}
-                    </button>
-                  </div>
-                  <SyntaxHighlighter
-                    language="sql"
-                    style={atomOneDark}
-                    customStyle={{
-                      margin: 0,
-                      borderRadius: 0,
-                      fontSize: '13px',
-                      padding: '16px',
-                      lineHeight: '1.6',
-                    }}
-                  >
-                    {result.sql}
-                  </SyntaxHighlighter>
-                </div>
+                {/* Editable SQL — read-only display plus an edit/run mode */}
+                <SqlEditor
+                  value={result.sql}
+                  onRun={handleRunSql}
+                  running={running}
+                  edited={sqlEdited}
+                  error={sqlError}
+                />
 
-                {/* Auto-detected chart (stat card / bar / line) */}
-                <ResultChart columns={result.result.columns} rows={result.result.rows} />
-
+                {/* Results first, then the visualisation of them. Reading the
+                    numbers and then seeing their shape matches how people check
+                    an answer; a chart above the data asks them to trust it. */}
                 {/* Result table */}
                 <div className="overflow-hidden rounded-lg border border-zinc-200 shadow-sm">
                   <div className="overflow-x-auto">
@@ -332,17 +333,35 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* Explanation */}
-                <div className="border-l-4 border-zinc-300 pl-4">
-                  <p className="text-base leading-relaxed text-zinc-700">
-                    {result.explanation}
-                  </p>
-                </div>
+                {/* Auto-detected chart (stat card / bar / line) */}
+                <ResultChart columns={result.result.columns} rows={result.result.rows} />
+
+                {/* Explanation. Hidden once the SQL has been hand-edited: it
+                    described the model's query, and showing it beside someone
+                    else's numbers would be confidently wrong. */}
+                {!sqlEdited && result.explanation && (
+                  <div className="border-l-4 border-zinc-300 pl-4">
+                    <p className="text-base leading-relaxed text-zinc-700">
+                      {result.explanation}
+                    </p>
+                  </div>
+                )}
 
                 {/* Latency + how the answer was produced */}
                 <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
-                  <span>Answered in {(result.latency_ms / 1000).toFixed(1)}s</span>
-                  {result.cached && (
+                  <span>
+                    {sqlEdited ? 'Ran in' : 'Answered in'}{' '}
+                    {(result.latency_ms / 1000).toFixed(1)}s
+                  </span>
+                  {sqlEdited && (
+                    <span
+                      title="These results came from SQL you edited, not from the model"
+                      className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700"
+                    >
+                      your query
+                    </span>
+                  )}
+                  {!sqlEdited && result.cached && (
                     <span
                       title="Served from cache — no LLM call was made"
                       className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700"
@@ -350,7 +369,7 @@ export default function Home() {
                       cached
                     </span>
                   )}
-                  {(result.attempts ?? 1) > 1 && (
+                  {!sqlEdited && (result.attempts ?? 1) > 1 && (
                     <span
                       title="The first query failed; the model was shown the database error and corrected itself"
                       className="rounded-full bg-violet-50 px-2 py-0.5 font-medium text-violet-700"

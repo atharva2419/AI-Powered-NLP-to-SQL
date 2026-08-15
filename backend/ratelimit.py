@@ -21,7 +21,12 @@ _HOUR = 3600
 _DAY = 86400
 
 _lock = threading.Lock()
-_per_ip: dict[str, deque[float]] = defaultdict(deque)
+# Keyed by (bucket, client ip). Buckets exist because the two endpoints cost
+# very different things: an NL question spends real money on two LLM calls,
+# while re-running edited SQL costs only local CPU. Charging both against one
+# allowance would mean a few minutes of learning in the SQL editor locks you
+# out of asking questions.
+_per_ip: dict[tuple[str, str], deque[float]] = defaultdict(deque)
 _global: deque[float] = deque()
 
 
@@ -48,32 +53,46 @@ def _retry_after(window: deque[float], horizon: float, now: float) -> int:
     return max(1, int(horizon - (now - window[0])))
 
 
-def check(client_ip: str) -> None:
-    """Record a request for ``client_ip``, or raise :class:`RateLimitExceeded`."""
+def check(client_ip: str, bucket: str = "llm") -> None:
+    """Record a request for ``client_ip``, or raise :class:`RateLimitExceeded`.
+
+    ``bucket`` selects which allowance to charge. Only the "llm" bucket counts
+    against the global daily budget, because only it spends money; "sql" covers
+    re-running edited SQL, which is local CPU and gets a far looser ceiling.
+    """
     if not config.RATE_LIMIT_ENABLED:
         return
 
+    is_llm = bucket == "llm"
+    hourly_limit = (
+        config.RATE_LIMIT_PER_HOUR if is_llm else config.EXECUTE_RATE_LIMIT_PER_HOUR
+    )
+
     now = time.time()
     with _lock:
-        _prune(_global, _DAY, now)
-        if len(_global) >= config.RATE_LIMIT_GLOBAL_PER_DAY:
-            raise RateLimitExceeded(
-                "The demo has hit its daily query budget. Try again tomorrow, "
-                "or run it locally with your own Groq key.",
-                retry_after=_retry_after(_global, _DAY, now),
-            )
+        if is_llm:
+            _prune(_global, _DAY, now)
+            if len(_global) >= config.RATE_LIMIT_GLOBAL_PER_DAY:
+                raise RateLimitExceeded(
+                    "The demo has hit its daily query budget. Try again tomorrow, "
+                    "or run it locally with your own Groq key.",
+                    retry_after=_retry_after(_global, _DAY, now),
+                )
 
-        window = _per_ip[client_ip]
+        window = _per_ip[(bucket, client_ip)]
         _prune(window, _HOUR, now)
-        if len(window) >= config.RATE_LIMIT_PER_HOUR:
+        if len(window) >= hourly_limit:
+            noun = "questions" if is_llm else "query runs"
             raise RateLimitExceeded(
-                f"Rate limit reached ({config.RATE_LIMIT_PER_HOUR} questions per hour). "
-                "Cached questions still work — try an example.",
+                f"Rate limit reached ({hourly_limit} {noun} per hour). "
+                + ("Cached questions still work — try an example." if is_llm
+                   else "Give it a few minutes."),
                 retry_after=_retry_after(window, _HOUR, now),
             )
 
         window.append(now)
-        _global.append(now)
+        if is_llm:
+            _global.append(now)
 
 
 def reset() -> None:

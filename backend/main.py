@@ -15,7 +15,8 @@ import config
 import history
 import metrics
 import ratelimit
-from query_engine import _SCHEMA, ROW_COUNT, _con, run_pipeline
+import sql_guard
+from query_engine import _SCHEMA, ROW_COUNT, _con, run_pipeline, run_query
 from sql_guard import SQLGuardError
 
 logging.basicConfig(
@@ -165,6 +166,52 @@ async def post_query(req: QueryRequest, request: Request):
         log.warning("history write failed", exc_info=True)
 
     return {**payload, "latency_ms": latency_ms, "cached": False}
+
+
+class ExecuteRequest(BaseModel):
+    sql: str = Field(..., min_length=1, max_length=5000)
+
+
+@app.post("/api/execute")
+async def post_execute(req: ExecuteRequest, request: Request):
+    """Run SQL the user typed or edited themselves.
+
+    This is what makes the SQL box a learning tool rather than a read-only
+    display: tweak the query, run it, see what changes. No LLM is involved, so
+    it is fast, free, and charged against a separate allowance.
+
+    Hand-written SQL is exactly as untrusted as model-written SQL, so it goes
+    through the same guard — one SELECT, no filesystem access, row cap pushed
+    into the query, wall-clock timeout. The guard was never LLM-specific; it
+    validates SQL, whoever wrote it.
+    """
+    metrics.incr("executions_total")
+    t0 = time.perf_counter()
+
+    try:
+        ratelimit.check(_client_ip(request), bucket="sql")
+    except ratelimit.RateLimitExceeded as exc:
+        metrics.incr("rate_limited")
+        return JSONResponse(
+            status_code=429,
+            content={"error": exc.message},
+            headers={"Retry-After": str(exc.retry_after)},
+        )
+
+    try:
+        sql = sql_guard.validate(req.sql)
+    except SQLGuardError as exc:
+        metrics.incr("execute_rejected")
+        return JSONResponse(status_code=400, content={"error": str(exc)})
+
+    result = await run_in_threadpool(run_query, sql)
+    latency_ms = int((time.perf_counter() - t0) * 1000)
+
+    if "error" in result:
+        metrics.incr("execute_errors")
+        return JSONResponse(status_code=400, content={"error": result["error"]})
+
+    return {"sql": sql, "result": result, "latency_ms": latency_ms}
 
 
 @app.get("/api/examples")

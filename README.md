@@ -59,14 +59,15 @@ LLM, so CI can prove the golden set still matches the schema for free.
 - **Self-correcting** — when generated SQL fails, the database's error is fed back to the model as a correction turn instead of shown to the user
 - **41M rows, lazily** — DuckDB scans a view over 12 monthly Parquet files; nothing is loaded into memory at startup and aggregates return in under half a second
 - **Real place names** — the TLC zone lookup is joined in, so you can ask about *JFK Airport* or *Manhattan to Brooklyn* instead of memorising that JFK is `LocationID 132`
-- **Four-layer SQL guard** — statement-type validation using DuckDB's own parser, a leading-keyword check, a filesystem-function denylist, and a row cap pushed into the query
+- **Four-layer SQL guard** — statement-type validation using DuckDB's own parser, a leading-keyword check, an identifier denylist (filesystem, catalog introspection, config disclosure), and a row cap pushed into the query. Read-only access to the taxi dataset and nothing else
 - **Response caching** — temperature-0 generation makes questions deterministic, so repeat questions skip both LLM calls entirely
 - **Rate limited** — sliding window per IP plus a daily global ceiling, so a public demo can't drain a personal API key
+- **Editable SQL** — change the generated query and re-run it against 41M rows in ~20 ms. No LLM call, its own rate-limit allowance, and the same guard applies to hand-written SQL as to the model's
 - **Auto-charts** — a stat card for single values, a bar chart for category breakdowns, a line chart for time series
 - **Query history** — every successful query is saved to SQLite; click any past query to restore it
 - **Column glossary** — all 23 columns in plain English, including what coded values like `payment_type = 1` mean
 - **Observable** — `/health` verifies the data is queryable, `/api/metrics` reports cache hit rate, latency percentiles and error counts
-- **Fully tested** — 193 backend tests (pytest) + 95 frontend tests (Jest + RTL), plus lint, type-check and Docker builds in CI
+- **Fully tested** — 230 backend tests (pytest) + 109 frontend tests (Jest + RTL), plus lint, type-check and Docker builds in CI
 
 ---
 
@@ -156,11 +157,11 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Running the tests and the eval
 
 ```bash
-# Backend — 193 tests
+# Backend — 230 tests
 pytest backend/tests/ -v
 ruff check backend/
 
-# Frontend — 95 tests
+# Frontend — 109 tests
 cd frontend && npm test && npx tsc --noEmit
 
 # Evaluation
@@ -207,6 +208,7 @@ and `RATE_LIMIT_GLOBAL_PER_DAY` to bound what a public demo can cost you.
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/api/query` | Translate a question to SQL and run it |
+| `POST` | `/api/execute` | Run hand-edited SQL (no LLM, guard still applies) |
 | `GET` | `/api/examples` | Six example questions |
 | `GET` | `/api/schema` | All 23 taxi table columns with types |
 | `GET` | `/api/history` | Last 20 successful queries (SQLite) |
@@ -270,10 +272,12 @@ NL-SQL/
 │   │   ├── download_data.py # fetch the full 12-month dataset
 │   │   ├── make_sample.py   # month-stratified sample for deployment
 │   │   └── bootstrap.py     # ensure data exists before the API starts
-│   └── tests/               # 193 tests
+│   └── tests/               # 230 tests
 ├── frontend/
 │   ├── app/page.tsx         # search, results, chart, history, glossary
-│   ├── components/ResultChart.tsx
+│   ├── components/
+│   │   ├── ResultChart.tsx
+│   │   └── SqlEditor.tsx    # editable query + run
 │   ├── lib/{api,chart,glossary}.ts
 │   └── __tests__/           # 59 tests
 ├── docs/

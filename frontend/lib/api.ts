@@ -79,6 +79,29 @@ export async function runQuery(question: string): Promise<QueryResponse> {
   return data;
 }
 
+export interface ExecuteResponse {
+  sql: string;
+  result: QueryResult;
+  latency_ms: number;
+  error?: string;
+  rateLimited?: boolean;
+}
+
+/**
+ * Run hand-edited SQL. No LLM involved, so this is fast and free — it powers
+ * the "edit the query and see what changes" loop.
+ */
+export async function executeSql(sql: string): Promise<ExecuteResponse> {
+  const res = await fetch(`${BASE}/api/execute`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sql }),
+  });
+  const data = (await res.json()) as ExecuteResponse;
+  if (res.status === 429) return { ...data, rateLimited: true };
+  return data;
+}
+
 export async function fetchHistory(): Promise<HistoryItem[]> {
   const res = await fetch(`${BASE}/api/history`);
   if (!res.ok) throw new Error("Failed to fetch history");

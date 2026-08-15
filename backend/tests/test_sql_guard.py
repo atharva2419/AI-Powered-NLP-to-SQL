@@ -29,6 +29,13 @@ class TestValidateAccepts:
             "SELECT created_at FROM (SELECT 1 AS created_at)",
             # 'update' and 'drop' appear only inside a string literal
             "SELECT 'drop table taxi' AS s FROM taxi",
+            # The zone lookup is part of the dataset, so it stays readable.
+            "SELECT Zone FROM zones LIMIT 3",
+            # Real practice queries must survive the tightened identifier scan.
+            "SELECT pickup_borough, COUNT(*) AS n FROM taxi GROUP BY 1 ORDER BY n DESC",
+            "SELECT HOUR(tpep_pickup_datetime) AS hour, AVG(fare_amount) FROM taxi GROUP BY hour",
+            "SELECT * FROM taxi WHERE dropoff_zone LIKE 'Midtown%' LIMIT 5",
+            "SELECT payment_type, ROUND(AVG(tip_amount), 2) FROM taxi GROUP BY payment_type",
         ],
     )
     def test_accepts_read_only_selects(self, sql: str):
@@ -82,8 +89,54 @@ class TestValidateRejects:
     )
     def test_rejects_filesystem_reads_inside_select(self, sql: str):
         # These parse as ordinary SELECTs — only the function denylist stops them.
-        with pytest.raises(SQLGuardError, match="disallowed function"):
+        with pytest.raises(SQLGuardError, match="disallowed name"):
             sql_guard.validate(sql)
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT * FROM duckdb_secrets()",
+            "SELECT * FROM duckdb_settings()",
+            "SELECT * FROM duckdb_tables()",
+            "SELECT * FROM duckdb_databases()",
+            "SELECT * FROM duckdb_functions()",
+            "SELECT * FROM pragma_database_list()",
+            "SELECT * FROM pragma_version()",
+            "SELECT version()",
+            "SELECT current_setting('memory_limit')",
+        ],
+    )
+    def test_rejects_server_introspection(self, sql: str):
+        """All of these are valid SELECTs, so the statement-type check passes them.
+
+        duckdb_secrets() is the sharp one: empty today, but it would hand over
+        storage credentials the moment any are configured.
+        """
+        with pytest.raises(SQLGuardError, match="disallowed name"):
+            sql_guard.validate(sql)
+
+    def test_rejects_a_catalog_table_that_needs_no_parentheses(self):
+        """Scanning only `name(` would miss this — sqlite_master is a table."""
+        with pytest.raises(SQLGuardError, match="sqlite_master"):
+            sql_guard.validate("SELECT * FROM sqlite_master")
+
+    @pytest.mark.parametrize("sql", [
+        "SELECT * FROM range(5)",
+        "SELECT COUNT(*) FROM generate_series(1, 1000000000)",
+    ])
+    def test_rejects_data_generators(self, sql: str):
+        """Nothing to practise with, and unbounded CPU on a public endpoint."""
+        with pytest.raises(SQLGuardError, match="disallowed name"):
+            sql_guard.validate(sql)
+
+    def test_rejects_the_query_function_that_would_re_enter_sql(self):
+        with pytest.raises(SQLGuardError, match="disallowed name"):
+            sql_guard.validate("SELECT * FROM query('SELECT 1')")
+
+    def test_prefix_blocking_covers_names_that_do_not_exist_yet(self):
+        """A DuckDB upgrade adding duckdb_whatever() is covered without an edit."""
+        with pytest.raises(SQLGuardError, match="disallowed name"):
+            sql_guard.validate("SELECT * FROM duckdb_some_future_function()")
 
     def test_rejects_unparseable_sql(self):
         with pytest.raises(SQLGuardError, match="does not parse"):

@@ -110,8 +110,9 @@ there?".
 
 ### The SQL guard
 
-The model is untrusted input, so its output is validated in four layers
-(`backend/sql_guard.py`):
+The model is untrusted input — and so is the SQL editor, where a person types
+straight into a box wired to the database. Both go through the same four
+layers (`backend/sql_guard.py`):
 
 1. **Statement type**, via DuckDB's own parser. Exactly one statement, and it
    must be a SELECT. This is the same parser that will execute the query, so
@@ -119,14 +120,25 @@ The model is untrusted input, so its output is validated in four layers
    statements (`SELECT 1; DROP TABLE taxi`) for free.
 2. **Leading keyword**, because DuckDB reports `PRAGMA ...` as
    `StatementType.SELECT`. The parser alone would let it through.
-3. **Function denylist**, because `read_csv('/etc/passwd')` is a perfectly
-   ordinary SELECT as far as the parser is concerned.
+3. **Identifier denylist**, because `read_csv('/etc/passwd')` is a perfectly
+   ordinary SELECT as far as the parser is concerned — and so are
+   `duckdb_secrets()`, `duckdb_tables()`, `sqlite_master` and
+   `current_setting()`. Checked as bare identifiers rather than function calls,
+   since `sqlite_master` needs no parentheses. Whole families are blocked by
+   prefix (`duckdb_`, `pragma_`, `sqlite_`, `read_`, …) so a DuckDB upgrade
+   that adds a new introspection function is covered without an edit.
+   `duckdb_secrets()` is the sharpest of these: it returns nothing today, but
+   would hand over storage credentials the moment any are configured.
 4. **A row cap pushed into the SQL**, so the database stops producing rows at
    the limit instead of the API truncating 41M rows after the fact.
 
 The connection itself is hardened before any generated SQL reaches it:
 extension auto-install and auto-load are disabled, which closes the widest hole
 (a SELECT that loads native code).
+
+Data generators (`range`, `generate_series`) are blocked too. They give a
+public endpoint unbounded CPU on data that isn't the dataset, and there is
+nothing to practise with in them.
 
 The previous implementation was a keyword denylist over `re.findall`. It missed
 `COPY ... TO` (writes files), `ATTACH` (mounts other databases), `INSTALL`/`LOAD`,
