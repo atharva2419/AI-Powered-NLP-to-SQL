@@ -153,7 +153,12 @@ Domain rules:
 - RatecodeID: 1=standard rate, 2=JFK, 3=Newark, 4=Nassau/Westchester, 5=negotiated fare, 6=group ride, 99=unknown. It is null for ~10% of rows, so use a filter that tolerates nulls unless the question is about rate codes.
 - PULocationID/DOLocationID are numeric TLC zone IDs. The names are already joined into this table as pickup_zone, pickup_borough, dropoff_zone and dropoff_borough — use those for anything involving a place name, and never join to another table.
 - Borough values are exactly: 'Manhattan', 'Queens', 'Brooklyn', 'Bronx', 'Staten Island', 'EWR' (Newark), 'Unknown', 'N/A'.
-- Airports are zones, not boroughs: pickup_zone = 'JFK Airport', 'LaGuardia Airport', or 'Newark Airport'. Neighbourhood zones are specific, e.g. 'Midtown Center', 'Upper East Side South' — use LIKE for a general area (dropoff_zone LIKE 'Midtown%').
+- Airports are zones, not boroughs: 'JFK Airport', 'LaGuardia Airport', 'Newark Airport'. Neighbourhood zones are specific, e.g. 'Midtown Center', 'Upper East Side South' — use LIKE for a general area (zone LIKE 'Midtown%').
+- DIRECTION MATTERS. Read where the trip starts and where it ends, and pick the column to match:
+  - "from X", "picked up at X", "starting in X", "leaving X", "out of X" -> pickup_zone / pickup_borough
+  - "to X", "dropped off at X", "going to X", "arriving in X", "ending in X", "into X" -> dropoff_zone / dropoff_borough
+  - "from X to Y" -> filter pickup on X AND dropoff on Y
+  A question about trips "to JFK" filters dropoff_zone, never pickup_zone. Getting this backwards answers a different question and looks correct, so check it before returning the query.
 - total_amount includes tips and surcharges; fare_amount does not.
 - Timestamps are tpep_pickup_datetime and tpep_dropoff_datetime. The data covers 2024 only.
 - Trip duration must be computed, e.g. date_diff('minute', tpep_pickup_datetime, tpep_dropoff_datetime).
@@ -218,6 +223,14 @@ _FEW_SHOT: list[tuple[str, str]] = [
         "What is the average fare for trips picked up at LaGuardia?",
         "SELECT ROUND(AVG(fare_amount), 2) AS avg_fare "
         "FROM taxi WHERE pickup_zone = 'LaGuardia Airport'",
+    ),
+    (
+        # Paired with the exemplar above so both directions are demonstrated.
+        # With only the pickup example present, the model answered "trips TO
+        # JFK" with pickup_zone = 'JFK Airport' — a plausible-looking query
+        # for the opposite question.
+        "How many trips were dropped off at Newark Airport?",
+        "SELECT COUNT(*) AS trips FROM taxi WHERE dropoff_zone = 'Newark Airport'",
     ),
 ]
 

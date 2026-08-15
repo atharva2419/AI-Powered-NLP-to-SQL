@@ -154,7 +154,8 @@
       "question": "What are the top 5 pickup locations by number of trips?",
       "category": "ranking",
       "difficulty": "easy",
-      "reference_sql": "SELECT PULocationID, COUNT(*) AS trips FROM taxi GROUP BY PULocationID ORDER BY trips DESC LIMIT 5"
+      "reference_sql": "SELECT pickup_zone, COUNT(*) AS trips FROM taxi GROUP BY pickup_zone ORDER BY trips DESC LIMIT 5",
+      "_note": "Reports zone names, not location IDs. Before the zone lookup was joined in, the numeric ID was the only representation available; now the prompt directs the model to name places, and a table of opaque integers is the worse answer."
     },
     {
       "id": "rank-002",
@@ -168,7 +169,8 @@
       "question": "What are the 10 busiest pickup and dropoff location pairs?",
       "category": "ranking",
       "difficulty": "hard",
-      "reference_sql": "SELECT PULocationID, DOLocationID, COUNT(*) AS trips FROM taxi GROUP BY PULocationID, DOLocationID ORDER BY trips DESC LIMIT 10"
+      "reference_sql": "SELECT pickup_zone, dropoff_zone, COUNT(*) AS trips FROM taxi GROUP BY pickup_zone, dropoff_zone ORDER BY trips DESC LIMIT 10",
+      "_note": "Reports zone names, not location IDs. Before the zone lookup was joined in, the numeric ID was the only representation available; now the prompt directs the model to name places, and a table of opaque integers is the worse answer."
     },
     {
       "id": "ratio-001",
@@ -295,6 +297,36 @@
       "category": "zones",
       "difficulty": "hard",
       "reference_sql": "SELECT ROUND(AVG(trip_distance), 2) AS avg_distance FROM taxi WHERE pickup_zone = 'JFK Airport' AND dropoff_zone LIKE 'Midtown%'"
+    },
+    {
+      "id": "zone-007",
+      "question": "What is the average cost of all trips to JFK Airport?",
+      "category": "zones",
+      "difficulty": "medium",
+      "_note": "Directionality. The original zone cases only ever asked about pickups, so a model that mapped every airport mention to pickup_zone scored 6/6 while answering the opposite question.",
+      "reference_sql": "SELECT ROUND(AVG(total_amount), 2) AS avg_cost FROM taxi WHERE dropoff_zone = 'JFK Airport'"
+    },
+    {
+      "id": "zone-008",
+      "question": "How many trips ended in Queens?",
+      "category": "zones",
+      "difficulty": "medium",
+      "reference_sql": "SELECT COUNT(*) AS trips FROM taxi WHERE dropoff_borough = 'Queens'"
+    },
+    {
+      "id": "zone-009",
+      "question": "How many trips went from Brooklyn to Manhattan?",
+      "category": "zones",
+      "difficulty": "medium",
+      "_note": "Deliberately the reverse of zone-004 (Manhattan to Brooklyn). Swapping the two columns yields a different, wrong answer, so a direction mix-up cannot pass both.",
+      "reference_sql": "SELECT COUNT(*) AS trips FROM taxi WHERE pickup_borough = 'Brooklyn' AND dropoff_borough = 'Manhattan'"
+    },
+    {
+      "id": "zone-010",
+      "question": "Which dropoff zone has the most trips?",
+      "category": "zones",
+      "difficulty": "medium",
+      "reference_sql": "SELECT dropoff_zone, COUNT(*) AS trips FROM taxi GROUP BY dropoff_zone ORDER BY trips DESC LIMIT 1"
     }
   ]
 }

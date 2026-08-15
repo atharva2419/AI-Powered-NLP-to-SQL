@@ -80,7 +80,17 @@ def _canonicalize(rows: list[list]) -> list[tuple]:
         return []
 
     columns = list(zip(*normalized, strict=True))
-    order = sorted(range(len(columns)), key=lambda i: str(columns[i]))
+    # The key sorts each column's own values first, so it describes the column
+    # as a multiset and does not depend on what order the rows arrived in.
+    #
+    # Using the values in row order here was a bug: a query that omitted
+    # ORDER BY returned the same data in a different sequence, which changed
+    # every column's signature, which permuted the columns differently on each
+    # side — and two identical result sets compared unequal.
+    def column_key(index: int) -> str:
+        return str(sorted(str(v) for v in columns[index]))
+
+    order = sorted(range(len(columns)), key=column_key)
     reordered = [tuple(row[i] for i in order) for row in normalized]
     return sorted(reordered, key=lambda t: tuple(str(v) for v in t))
 

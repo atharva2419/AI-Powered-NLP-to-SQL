@@ -8,16 +8,16 @@ Ask plain-English questions about **41 million NYC taxi trips** (full year 2024)
 
 ## How good is it, actually?
 
-Measured, not asserted. `backend/eval/` runs a hand-written golden set of 42
+Measured, not asserted. `backend/eval/` runs a hand-written golden set of 46
 questions and scores **execution accuracy** — a generated query counts as
 correct only when its result set matches hand-written reference SQL.
 
 | | Baseline prompt | + few-shot exemplars | + zone lookup |
 |---|---|---|---|
-| **Execution accuracy** | 64% | 78% | **83%** |
+| **Execution accuracy** | 64% | 78% | **85%** |
 | Valid SQL rate | 100% | 92% | 93% |
-| Needed a second attempt | 11 / 36 | 3 / 36 | 3 / 42 |
-| Cases | 36 | 36 | 42 |
+| Needed a second attempt | 11 / 36 | 3 / 36 | 3 / 46 |
+| Cases | 36 | 36 | 46 |
 
 Full breakdowns by category and difficulty, plus every failure with its
 generated SQL: **[docs/eval-report.md](docs/eval-report.md)** (baseline kept at
@@ -27,7 +27,7 @@ generated SQL: **[docs/eval-report.md](docs/eval-report.md)** (baseline kept at
 rate was already 100%. The failures were *shape* errors: pivoting "compare A vs
 B" into two columns instead of two rows, averaging per-row ratios instead of
 dividing the sums, volunteering extra columns nobody asked for. Prose rules in
-the system prompt did not fix that; five worked examples did. None of the
+the system prompt did not fix that; worked examples did. None of the
 exemplar questions appear in the evaluation set, and a test enforces that.
 
 **The tradeoffs are real.** Few-shot prompting cut first-attempt failures from
@@ -37,15 +37,15 @@ so the valid-SQL rate fell from 100% to 92%. The longer prompt also costs about
 latency-sensitive deployment might not agree.
 
 **Zone lookup paid for itself.** Joining the TLC zone names into the table
-added 6 questions about boroughs and airports — all 6 correct on the first
-attempt — while the original 36 scored exactly as before it (28/36). The
+added 10 questions about boroughs, airports and trip direction — all 10
+correct — while the original 36 held steady. The
 alternative was to leave zones in a separate table and let the model write the
 joins; see [docs/architecture.md](docs/architecture.md) for why denormalising
 won, and what it cost.
 
 **On precision.** Repeated runs of the same cases land within about 3 points of
-each other even at temperature 0, so the 64% → 83% improvement is real but
-"83% vs 81%" would not be. Forty-two cases is enough to compare two prompts,
+each other even at temperature 0, so the 64% → 85% improvement is real but
+"85% vs 83%" would not be. Forty-six cases is enough to compare two prompts,
 not enough to detect a small regression.
 
 `python -m eval.run --check` re-runs every reference query without calling the
@@ -66,7 +66,7 @@ LLM, so CI can prove the golden set still matches the schema for free.
 - **Query history** — every successful query is saved to SQLite; click any past query to restore it
 - **Column glossary** — all 23 columns in plain English, including what coded values like `payment_type = 1` mean
 - **Observable** — `/health` verifies the data is queryable, `/api/metrics` reports cache hit rate, latency percentiles and error counts
-- **Fully tested** — 177 backend tests (pytest) + 86 frontend tests (Jest + RTL), plus lint, type-check and Docker builds in CI
+- **Fully tested** — 193 backend tests (pytest) + 95 frontend tests (Jest + RTL), plus lint, type-check and Docker builds in CI
 
 ---
 
@@ -80,7 +80,7 @@ question ─► LLM ─► SQL ─► guard ─► DuckDB ─► rows ─► LLM
 
 1. The question hits FastAPI, which checks the response cache first — a hit costs nothing and skips the rest
 2. On a miss, the rate limiter decides whether this visitor gets to spend an LLM call
-3. LLaMA 3.1 translates the question into DuckDB SQL, guided by the schema, the TLC data dictionary, and five worked examples
+3. LLaMA 3.1 translates the question into DuckDB SQL, guided by the schema, the TLC data dictionary, and seven worked examples
 4. The SQL guard validates it (single SELECT, no filesystem access) and wraps it with a row cap
 5. DuckDB executes it lazily against 12 Parquet files, under a wall-clock timeout
 6. If it failed, the error goes back to the model and the loop repeats; otherwise LLaMA writes a short explanation
@@ -156,11 +156,11 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Running the tests and the eval
 
 ```bash
-# Backend — 177 tests
+# Backend — 193 tests
 pytest backend/tests/ -v
 ruff check backend/
 
-# Frontend — 86 tests
+# Frontend — 95 tests
 cd frontend && npm test && npx tsc --noEmit
 
 # Evaluation
@@ -263,14 +263,14 @@ NL-SQL/
 │   ├── history.py           # SQLite query history
 │   ├── config.py            # every tunable, read from the environment
 │   ├── eval/
-│   │   ├── dataset.json     # 42 golden questions with reference SQL
+│   │   ├── dataset.json     # 46 golden questions with reference SQL
 │   │   └── run.py           # execution-accuracy harness + report generator
 │   ├── data/
 │   │   ├── taxi_zone_lookup.csv  # 265 TLC zones — committed, 12 KB
 │   │   ├── download_data.py # fetch the full 12-month dataset
 │   │   ├── make_sample.py   # month-stratified sample for deployment
 │   │   └── bootstrap.py     # ensure data exists before the API starts
-│   └── tests/               # 177 tests
+│   └── tests/               # 193 tests
 ├── frontend/
 │   ├── app/page.tsx         # search, results, chart, history, glossary
 │   ├── components/ResultChart.tsx

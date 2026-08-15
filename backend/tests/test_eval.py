@@ -84,6 +84,34 @@ class TestResultComparison:
                   "rows": [[20.5, 1], [31.0, 2]], "row_count": 2}
         assert evalrun.results_match(expected, actual)
 
+    def test_same_data_in_a_different_row_order_matches(self):
+        """A query without ORDER BY returns the same answer, shuffled.
+
+        This was a live bug: the column-canonicalisation key was built from
+        each column's values *in row order*, so a shuffle changed the key,
+        permuted the columns differently on each side, and made two identical
+        result sets compare unequal. It scored real passes as failures.
+        """
+        expected = {"columns": ["RatecodeID", "trips"], "row_count": 4,
+                    "rows": [[1, 34650979], [2, 1406863], [3, 129950], [99, 466974]]}
+        shuffled = {"columns": ["RatecodeID", "trips"], "row_count": 4,
+                    "rows": [[3, 129950], [99, 466974], [1, 34650979], [2, 1406863]]}
+        assert evalrun.results_match(expected, shuffled)
+
+    def test_row_order_and_column_order_both_differ(self):
+        expected = {"columns": ["k", "v"], "row_count": 3,
+                    "rows": [[1, 500], [2, 300], [3, 100]]}
+        actual = {"columns": ["v", "k"], "row_count": 3,
+                  "rows": [[100, 3], [500, 1], [300, 2]]}
+        assert evalrun.results_match(expected, actual)
+
+    def test_nulls_survive_canonicalisation(self):
+        expected = {"columns": ["k", "v"], "row_count": 2,
+                    "rows": [[None, 4091232], [1, 34650979]]}
+        shuffled = {"columns": ["k", "v"], "row_count": 2,
+                    "rows": [[1, 34650979], [None, 4091232]]}
+        assert evalrun.results_match(expected, shuffled)
+
     def test_scrambled_row_pairings_still_fail(self):
         """Order-insensitivity must not become blindness to wrong pairings."""
         expected = {"columns": ["k", "v"], "rows": [[1, 10], [2, 20]], "row_count": 2}

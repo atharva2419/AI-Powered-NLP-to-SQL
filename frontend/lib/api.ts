@@ -1,4 +1,9 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Trailing slashes are stripped because every call below appends "/api/...".
+// A base of "https://host/" would produce "https://host//api/query", and
+// Starlette matches routes exactly — a doubled slash is a 404, not a redirect.
+// Pasting a URL with the trailing slash the browser shows is an easy mistake,
+// and not one worth debugging twice.
+const BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
 
 export interface QueryResult {
   columns: string[];
