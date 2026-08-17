@@ -185,8 +185,8 @@ export default function Home() {
         {/* What this is, for someone who has just landed here */}
         <p className="mb-6 max-w-[640px] text-sm leading-relaxed text-zinc-600">
           Explore a full year of New York City taxi rides just by asking questions in
-          plain English - no coding required. Curious how fares change by time of day,
-          or which neighborhoods get the most pickups? Just ask, and see the answer as
+          plain English. Curious how fares change by time of day,
+          or which neighborhoods get the most pickups? See the answer as
           numbers, a chart, and a short explanation.
         </p>
 
