@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   fetchExamples,
   fetchSchema,
@@ -57,17 +57,38 @@ export default function Home() {
   const [running, setRunning] = useState(false);
   const [sqlEdited, setSqlEdited] = useState(false);
   const [sqlError, setSqlError] = useState<string | null>(null);
+  // The hosted backend sleeps when idle and takes up to a minute to wake. A
+  // first-time visitor would otherwise stare at an empty page with no chips,
+  // no glossary and no clue why.
+  const [connection, setConnection] = useState<'connecting' | 'ready' | 'offline'>('connecting');
 
-  useEffect(() => {
-    fetchExamples().then(setExamples).catch(() => {});
-    fetchSchema()
-      .then((s) => {
+  const loadInitialData = useCallback(() => {
+    // No synchronous setState here: `connection` already starts as
+    // 'connecting', and setting it again in the effect body would cascade an
+    // extra render. Retrying sets it explicitly instead.
+    //
+    // Examples and schema decide whether the page is usable; history is
+    // optional, so its failure must not report the backend as offline.
+    Promise.all([
+      fetchExamples().then(setExamples),
+      fetchSchema().then((s) => {
         setSchema(s.columns);
         setRowCount(s.rowCount);
-      })
-      .catch(() => {});
+      }),
+    ])
+      .then(() => setConnection('ready'))
+      .catch(() => setConnection('offline'));
     fetchHistory().then(setHistory).catch(() => {});
   }, []);
+
+  const retryConnection = useCallback(() => {
+    setConnection('connecting');
+    loadInitialData();
+  }, [loadInitialData]);
+
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
 
   const submit = async (q: string) => {
     if (!q.trim()) return;
@@ -161,6 +182,16 @@ export default function Home() {
           </div>
         </div>
 
+        {/* What this is, for someone who has just landed here */}
+        <p className="mb-6 max-w-[640px] text-sm leading-relaxed text-zinc-600">
+          A data-analysis engine for the NYC Taxi &amp; Limousine Commission&apos;s public
+          yellow-cab trip records — every fare, distance, tip, pickup and dropoff zone
+          for the year. Type a question and a language model writes the SQL, DuckDB runs
+          it, and you get the query, the numbers, a chart and a plain-English answer.
+          You can edit the SQL and re-run it, so it doubles as a place to practise
+          querying a real dataset instead of a toy one.
+        </p>
+
         {/* Search input */}
         <div className="flex gap-2 mb-4">
           <input
@@ -180,9 +211,36 @@ export default function Home() {
           </button>
         </div>
 
+        {/* Backend still waking, or unreachable. The hosted API sleeps when
+            idle, so this is the very first thing a new visitor often sees. */}
+        {connection === 'connecting' && (
+          <div className="mb-6 flex items-center gap-2 text-xs text-zinc-500">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+            Waking the server — the free-tier host sleeps when idle, so the first
+            load can take up to a minute.
+          </div>
+        )}
+
+        {connection === 'offline' && (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-sm text-amber-800">
+              Can&apos;t reach the query service. It may still be starting up.
+            </p>
+            <button
+              onClick={retryConnection}
+              className="mt-2 rounded-md border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-100"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
         {/* Example chips + schema toggle */}
         <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
           <div className="flex flex-wrap gap-2">
+            {examples.length > 0 && !result && !loading && (
+              <span className="mr-1 self-center text-xs text-zinc-400">Try:</span>
+            )}
             {examples.map((ex) => (
               <button
                 key={ex}
@@ -203,6 +261,48 @@ export default function Home() {
             </button>
           )}
         </div>
+
+        {/* First-visit orientation. Disappears once there is a result, so it
+            teaches the model of interaction without becoming permanent chrome. */}
+        {!result && !loading && connection === 'ready' && (
+          <div className="mb-8 rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+            <ol className="grid gap-4 sm:grid-cols-3">
+              {[
+                ['Ask', 'Type a question the way you would say it out loud. No SQL needed.'],
+                ['Inspect', 'See the exact DuckDB query it ran, plus a chart and the rows.'],
+                ['Experiment', 'Edit that SQL and re-run it to see how the answer changes.'],
+              ].map(([title, body], i) => (
+                <li key={title} className="flex gap-3">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-[10px] font-semibold text-white">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold text-zinc-800">{title}</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">{body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+
+            <div
+              data-testid="dataset-facts"
+              className="mt-5 flex flex-wrap gap-x-5 gap-y-1 border-t border-zinc-100 pt-4 text-xs text-zinc-500"
+            >
+              <span>
+                <span className="font-medium text-zinc-700">
+                  {rowCount > 0 ? formatRowCount(rowCount) : '—'}
+                </span>{' '}
+                trips
+              </span>
+              <span>
+                <span className="font-medium text-zinc-700">{schema.length}</span> columns
+              </span>
+              <span>Jan–Dec 2024</span>
+              <span>Fares, tips, distances, payment types</span>
+              <span>265 pickup &amp; dropoff zones across 5 boroughs</span>
+            </div>
+          </div>
+        )}
 
         {/* Collapsible glossary panel */}
         {schemaOpen && schema.length > 0 && (

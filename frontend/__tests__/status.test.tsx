@@ -112,7 +112,8 @@ describe('dataset size', () => {
 
   it('states the real dataset size rather than a hardcoded number', async () => {
     await renderWithRows(1_000_000)
-    await waitFor(() => expect(screen.getByText(/1\.0M/)).toBeInTheDocument())
+    // Shown in the subtitle and again in the first-visit facts strip.
+    await waitFor(() => expect(screen.getAllByText(/1\.0M/).length).toBeGreaterThan(0))
   })
 
   it('flags a sampled dataset', async () => {
@@ -124,7 +125,7 @@ describe('dataset size', () => {
 
   it('does not flag the full dataset', async () => {
     await renderWithRows(41_000_000)
-    await waitFor(() => expect(screen.getByText(/41\.0M/)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getAllByText(/41\.0M/).length).toBeGreaterThan(0))
     expect(screen.queryByText('sample')).not.toBeInTheDocument()
   })
 
