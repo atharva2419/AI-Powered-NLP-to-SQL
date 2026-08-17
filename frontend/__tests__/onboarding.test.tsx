@@ -56,20 +56,24 @@ beforeEach(() => {
 })
 
 describe('explaining what the app is', () => {
-  it('says it analyses NYC taxi trip records', async () => {
+  // Copy is deliberately non-technical — this is a first stop for hiring
+  // managers and other non-engineers, not a spec. No "SQL", "DuckDB" or
+  // "language model" in the pitch; those live in the README instead.
+  it('says it is about exploring NYC taxi rides', async () => {
     render(<Home />)
-    expect(screen.getByText(/taxi & limousine commission/i)).toBeInTheDocument()
-    expect(screen.getByText(/yellow-cab trip records/i)).toBeInTheDocument()
+    expect(screen.getByText(/new york city taxi rides/i)).toBeInTheDocument()
   })
 
-  it('explains that a model writes the SQL and DuckDB runs it', async () => {
+  it('says questions can be asked in plain English', async () => {
     render(<Home />)
-    expect(screen.getByText(/language model writes the SQL/i)).toBeInTheDocument()
+    // Mentioned in both the header subtitle and the intro paragraph.
+    expect(screen.getAllByText(/plain english/i).length).toBeGreaterThan(0)
   })
 
-  it('mentions that the SQL can be edited to practise', async () => {
+  it('avoids technical jargon in the pitch', async () => {
     render(<Home />)
-    expect(screen.getByText(/practise/i)).toBeInTheDocument()
+    expect(screen.queryByText(/language model/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/DuckDB/i)).not.toBeInTheDocument()
   })
 
   it('shows the intro even while the backend is still waking', async () => {
@@ -77,16 +81,16 @@ describe('explaining what the app is', () => {
     mockFetchSchema.mockRejectedValue(new Error('offline'))
     render(<Home />)
     // The description is static copy, so a sleeping backend must not hide it.
-    expect(screen.getByText(/yellow-cab trip records/i)).toBeInTheDocument()
+    expect(screen.getByText(/new york city taxi rides/i)).toBeInTheDocument()
   })
 })
 
 describe('first-visit orientation panel', () => {
-  it('walks through ask, inspect, experiment', async () => {
+  it('walks through ask, see the answer, dig deeper', async () => {
     render(<Home />)
     await waitFor(() => expect(screen.getByText('Ask')).toBeInTheDocument())
-    expect(screen.getByText('Inspect')).toBeInTheDocument()
-    expect(screen.getByText('Experiment')).toBeInTheDocument()
+    expect(screen.getByText('See the answer')).toBeInTheDocument()
+    expect(screen.getByText('Dig deeper')).toBeInTheDocument()
   })
 
   it('summarises what the dataset covers', async () => {
@@ -116,13 +120,13 @@ describe('first-visit orientation panel', () => {
       latency_ms: 100,
     })
     render(<Home />)
-    await waitFor(() => expect(screen.getByText('Inspect')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('See the answer')).toBeInTheDocument())
 
     fireEvent.click(screen.getByText(EXAMPLES[0]))
 
     // SqlEditor is mocked in this file, so the editor stands in for the result.
     await waitFor(() => expect(screen.getByTestId('sql-editor')).toBeInTheDocument())
-    expect(screen.queryByText('Inspect')).not.toBeInTheDocument()
+    expect(screen.queryByText('See the answer')).not.toBeInTheDocument()
     expect(screen.queryByText('Try:')).not.toBeInTheDocument()
   })
 
@@ -132,7 +136,7 @@ describe('first-visit orientation panel', () => {
     render(<Home />)
     // Quoting "265 zones" over a backend we cannot reach would be a guess.
     await waitFor(() => expect(screen.getByText(/can't reach the query service/i)).toBeInTheDocument())
-    expect(screen.queryByText('Inspect')).not.toBeInTheDocument()
+    expect(screen.queryByText('See the answer')).not.toBeInTheDocument()
   })
 })
 
