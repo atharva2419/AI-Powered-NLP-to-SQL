@@ -184,12 +184,10 @@ export default function Home() {
 
         {/* What this is, for someone who has just landed here */}
         <p className="mb-6 max-w-[640px] text-sm leading-relaxed text-zinc-600">
-          A data-analysis engine for the NYC Taxi &amp; Limousine Commission&apos;s public
-          yellow-cab trip records — every fare, distance, tip, pickup and dropoff zone
-          for the year. Type a question and a language model writes the SQL, DuckDB runs
-          it, and you get the query, the numbers, a chart and a plain-English answer.
-          You can edit the SQL and re-run it, so it doubles as a place to practise
-          querying a real dataset instead of a toy one.
+          Explore a full year of New York City taxi rides just by asking questions in
+          plain English - no coding required. Curious how fares change by time of day,
+          or which neighborhoods get the most pickups? Just ask, and see the answer as
+          numbers, a chart, and a short explanation.
         </p>
 
         {/* Search input */}
@@ -268,9 +266,9 @@ export default function Home() {
           <div className="mb-8 rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
             <ol className="grid gap-4 sm:grid-cols-3">
               {[
-                ['Ask', 'Type a question the way you would say it out loud. No SQL needed.'],
-                ['Inspect', 'See the exact DuckDB query it ran, plus a chart and the rows.'],
-                ['Experiment', 'Edit that SQL and re-run it to see how the answer changes.'],
+                ['Ask', 'Type a question in plain English.'],
+                ['See the answer', 'Get your answer as a chart, a table, and a plain-English summary.'],
+                ['Dig deeper', 'Curious how it works? Tweak the underlying query and see the answer update.'],
               ].map(([title, body], i) => (
                 <li key={title} className="flex gap-3">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-[10px] font-semibold text-white">
