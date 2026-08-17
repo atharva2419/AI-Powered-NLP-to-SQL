@@ -187,7 +187,7 @@ export default function Home() {
           Explore a full year of New York City taxi rides just by asking questions in
           plain English. Curious how fares change by time of day,
           or which neighborhoods get the most pickups? See the answer as
-          numbers, a chart, and a short explanation.
+          numbers, charts, and a short explanation.
         </p>
 
         {/* Search input */}
